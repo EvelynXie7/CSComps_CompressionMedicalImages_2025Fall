@@ -33,7 +33,7 @@ def quantize(matrices, algorithm):
     return new_matrices
 
 
-def main():
+def test():
     # Currently used for testing
     matrices = np.array(
         [[[1], [2], [8]],
@@ -45,4 +45,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    test()
