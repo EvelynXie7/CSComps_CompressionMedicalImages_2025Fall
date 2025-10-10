@@ -8,7 +8,9 @@ def getQuantizationTable(algorithm):
     Outputs:
         - quantization_table (8x8 np.ndarray): The quantization table for this algorithm
     '''
-    pass
+    match algorithm:
+        case 'test':
+            return np.array([3])
 
 
 def quantize(matrices, algorithm):
@@ -38,10 +40,7 @@ def main():
          [[-3], [-1], [10]],
          [[0], [0], [1]]]
     )
-    table = np.array(
-        [5]
-    )
-    new_matrices = quantize(matrices, table)
+    new_matrices = quantize(matrices, 'test')
     print(new_matrices)
 
 
