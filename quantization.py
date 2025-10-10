@@ -1,15 +1,26 @@
 import numpy as np
 
 
-def quantizeFromTable(matrices, quantization_table):
+def getQuantizationTable(algorithm):
     '''
     Inputs: 
-        - matrices (nxmx8x8 np.ndarray): The matrices to be quantized, split into 8x8 arrays, 
-          n and m relate to the dimensions of the original image
-        - quantization_table (8x8 np.ndarray): The 8x8 quantization table
+        - algorithm (str): The (not case-sensitive) name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+    Outputs:
+        - quantization_table (8x8 np.ndarray): The quantization table for this algorithm
+    '''
+    pass
+
+
+def quantize(matrices, algorithm):
+    '''
+    Inputs: 
+        - matrices (nxmx8x8 np.ndarray): The matrices to be quantized, split into 8x8 arrays
+        - algorithm (str): The (not case-sensitive) name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
     Outputs:
         - new_matrices (nxmx8x8 np.ndarray): The matrices after having been quantized
     '''
+    quantization_table = getQuantizationTable(algorithm.lower())
+    
     shape = matrices.shape
     new_matrices = np.empty(shape, dtype=int)
 
@@ -18,17 +29,6 @@ def quantizeFromTable(matrices, quantization_table):
             matrix = matrices[i, j]
             new_matrices[i, j] = np.rint(matrix/quantization_table)
     return new_matrices
-
-
-def quantize(matrices, algorithm): # Function will work by finding the correct quantization table to use, then calling quantizeFromTable()
-    '''
-    Inputs: 
-        - matrices (nxmx8x8 np.ndarray): The matrices to be quantized, split into 8x8 arrays
-        - algorithm (str): The (not case-sensitive) name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
-    Outputs:
-        - new_matrices (nxmx8x8 np.ndarray): The matrices after having been quantized
-    '''
-    pass
 
 
 def main():
