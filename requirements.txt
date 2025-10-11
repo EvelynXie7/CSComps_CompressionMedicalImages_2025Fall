@@ -1,0 +1,6 @@
+pillow
+nibabel
+imageio
+requests
+tqdm
+numpy
