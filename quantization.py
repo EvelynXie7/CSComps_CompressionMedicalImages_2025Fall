@@ -12,7 +12,6 @@ def getQuantizationTable(algorithm):
         case 'test':
             return np.array([3])
 
-
 def quantize(matrices, algorithm):
     '''
     Inputs: 
@@ -32,6 +31,24 @@ def quantize(matrices, algorithm):
             new_matrices[i, j] = np.rint(matrix/quantization_table)
     return new_matrices
 
+def decodeQuantization(quantized_matrices, algorithm):
+    '''
+    Inputs: 
+        - quantized_matrices (nxmx8x8 np.ndarray): The matrices after having been quantized
+        - algorithm (str): The (not case-sensitive) name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+    Outputs:
+        - new_matrices (nxmx8x8 np.ndarray): The matrices after having been un-quantized
+    '''
+    quantization_table = getQuantizationTable(algorithm.lower())
+
+    shape = quantized_matrices.shape
+    new_matrices = np.empty(shape, dtype=int)
+
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            matrix = quantized_matrices[i, j]
+            new_matrices[i, j] = np.rint(matrix * quantization_table)
+    return new_matrices
 
 def test():
     # Currently used for testing
@@ -41,8 +58,8 @@ def test():
          [[0], [0], [1]]]
     )
     new_matrices = quantize(matrices, 'test')
-    print(new_matrices)
-
+    matrices = decodeQuantization(new_matrices, 'test')
+    print(matrices)
 
 if __name__ == '__main__':
     test()
