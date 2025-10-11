@@ -2,7 +2,6 @@
 CT Data and functions to load images from https://github.com/neheller/kits19#
 '''
 
-
 import numpy as np
 
 def loadCT():

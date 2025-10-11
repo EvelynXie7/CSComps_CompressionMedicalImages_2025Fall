@@ -1,8 +1,4 @@
-.venv
-.vscode
+comps2025
 data
 *__pycache__*
-data/case_*/imaging.nii.gz
 starter_code
-comps2025
-requirements.txt
