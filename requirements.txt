@@ -4,3 +4,4 @@ imageio
 requests
 tqdm
 numpy
+scipy

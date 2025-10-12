@@ -10,13 +10,15 @@ from pathlib import Path
 from imageio import imwrite
 from PIL import Image
 
-def loadCT(cid, img_num=0):
+from scipy import fft
+
+def loadCT(cid, image_num=0):
     case_path = get_case_path(cid)
     vol = nib.load(str(case_path / "imaging.nii.gz"))
 
     vol_data = vol.get_fdata()
     vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX).astype(np.uint8)
-    return vol_data[img_num]
+    return vol_data[image_num] # Cutting down on data here for best scaling data during hu_to_grayscale
     
 def loadMRI():
     pass
@@ -27,14 +29,14 @@ def runDCT(image):
 def runDWT(image):
     pass
 
-def saveImg(img, name='current_image'):
+def saveImage(image, name='current_image'):
     out_path = Path('tmp/images/')
     if not out_path.exists():
         out_path.mkdir()  
 
     fpath = out_path / f'{name}.png'
-    imwrite(str(fpath), img)
+    imwrite(str(fpath), image)
 
 if __name__ == '__main__':
     vol_data = loadCT(123, 10)
-    saveImg(vol_data)
+    saveImage(vol_data)
