@@ -494,7 +494,7 @@ def put_tail(file_path):
 # Main Encoding Pipeline
 # =============================================================================
 
-def JPEG_encode(img)->str:
+def JPEG_encode(img):
     """
     Encode the quantized DCT coefficients.
     

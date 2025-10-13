@@ -28,6 +28,14 @@ ZIGZAG_ORDER = [
     # see Figure 4(b) from Purdue lab, page 6 for pattern
     # list of 64 numbers representing the raster-order index
     # raster-order indedx is row*8+ col
+    0,  1,  8,  16, 9,  2,  3,  10,
+    17, 24, 32, 25, 18, 11, 4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13, 6,  7,  14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63
 ]
 
 
@@ -35,9 +43,21 @@ ZIGZAG_ORDER = [
 # Helper Functions
 # =============================================================================
 
+def BitSize(value)->int:
+    """
+    Input: value - signed integer
+    Output: Integer containing position of the most significant bit in the unsigned value
+    """
 
+    # in case value is 0 want length of 1
+    if value == 0:
+        return 0
+    
+    value=int(value)
+    # default bit_length function on the absolute value
+    return abs(value).bit_length()
 
-def VLI_decode(bitsize, VLI_block_code):
+def VLI_decode(bitsize, VLI_block_code, block_code):
     """
     Decodes an integer from Variable Length Integer (VLI) encoding.
     
@@ -48,13 +68,19 @@ def VLI_decode(bitsize, VLI_block_code):
 
     VLI encoding rules from Purdue lab Section 3, pages 7-8:
     """
-    #concert to integer
+    #convert to integer
+    value=int(VLI_block_code)
     
     # If positive value: 
+    if value>=0:
+        decoded_block_code+=value
     #   return value
+        return block_code
     
     # if negative value:
+    if value <0:
     #   reverse 2's complement
+        
     #   return value
 
     #add binary string to bitstring
