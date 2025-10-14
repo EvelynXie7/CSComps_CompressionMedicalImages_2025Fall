@@ -441,6 +441,7 @@ def put_header(width:int, height:int, quant, fileout):
     #    0x76,0x65,0x72,0x73,0x69,0x74,0x79,0x2e,
     #    0x0a
     #   } ;
+    '''
     Comment = bytes([
         0xFF, 0xFE, 0x00, 0x44, 0x20,
         0x45, 0x64, 0x75, 0x63, 0x61, 0x74, 0x69, 0x6f,
@@ -453,6 +454,7 @@ def put_header(width:int, height:int, quant, fileout):
         0x76, 0x65, 0x72, 0x73, 0x69, 0x74, 0x79, 0x2e,
         0x0a
     ])
+    '''
     #    unsigned int qt[64] = {0} ; #quantization table
     qt= [0]*64
     #    int      i,j ;
@@ -510,7 +512,7 @@ def put_header(width:int, height:int, quant, fileout):
 
     #    /* Comments */
     #    fwrite(Comment,sizeof(char),sizeof(Comment)/sizeof(Comment[0]),fileout) ; 
-    fileout.write(Comment)
+    # fileout.write(Comment)
 
     #    /* Baseline Frame start marker */
     #    p[0] = 0xff ;
