@@ -6,11 +6,16 @@ Uses Huffman coding and Run-Length Encoding for compression of quantized DCT coe
 
 Based on Purdue University Digital Image Processing Laboratory:
 "Achromatic Baseline JPEG encoding Lab" by Prof. Charles A. Bouman
-https://engineering.purdue.edu/~bouman/grad-labs/JPEG-Image-Coding/pdf/lab.pdf
+https://engineering.purdue.edu/~bouman/grad-labs/JPEG-Image-Coding/
+put_header and put_tail commented code is directly from the lab and was 
+adapted into python.
 
 All encoding functions (DC_encode, AC_encode, VLI_encode, etc.) adapted from 
 Purdue Lab Section 3 (Entropy Encoding of Coefficients, pages 7-15) and 
 Appendix B (AC Huffman Tables, pages 23-26).
+
+
+
 
 Original work includes Python implementation and integration of the encoding pipeline.
 """
