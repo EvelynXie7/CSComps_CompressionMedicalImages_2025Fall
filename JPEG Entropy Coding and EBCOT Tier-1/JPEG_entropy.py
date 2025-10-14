@@ -17,6 +17,13 @@ Original work includes Python implementation and integration of the encoding pip
 
 import numpy as np
 
+SOI = 0xFFD8   # Start of Image
+EOI = 0xFFD9   # End of Image
+DQT = 0xFFDB   # Define Quantization Table
+SOF0 = 0xFFC0  # Start of Frame (baseline DCT)
+DHT = 0xFFC4   # Define Huffman Table
+SOS = 0xFFDA   # Start of Scan
+
 
 # =============================================================================
 # Constants and Lookup Tables
@@ -43,6 +50,17 @@ ZIGZAG_ORDER = [
     58, 59, 52, 45, 38, 31, 39, 46,
     53, 60, 61, 54, 47, 55, 62, 63
 
+]
+
+Zig = [
+    [ 0, 1, 5, 6,14,15,27,28],
+    [ 2, 4, 7,13,16,26,29,42],
+    [ 3, 8,12,17,25,30,41,43],
+    [ 9,11,18,24,31,40,44,53],
+    [10,19,23,32,39,45,52,54],
+    [20,22,33,38,46,51,55,60],
+    [21,34,37,47,50,56,59,61],
+    [35,36,48,49,57,58,62,63]
 ]
 
 # standard quantization table
@@ -333,8 +351,7 @@ def zero_pad(block_code, byte_array, length) -> tuple:
 
     return byte_array,length
 
-def put_header(width:int, height:int, quant:list[list[int]], file_path):
-    
+def put_header(width:int, height:int, quant, fileout):
     # void put_header(
     #   int width,        /* number of columns in image */
     #   int height,       /* number of rows in image */
@@ -348,6 +365,12 @@ def put_header(width:int, height:int, quant:list[list[int]], file_path):
     #    0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B /* list part */
     #    } ; 
 
+    DC_table = bytes([
+        0xFF, 0xC4, 0x00, 0x1F, 0x00,
+        0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B  # list part
+        ])
 
     #   static unsigned char AC_table[] = 
     #   {0xFF,0xC4,0x00,0xB5,0x10,
@@ -374,6 +397,32 @@ def put_header(width:int, height:int, quant:list[list[int]], file_path):
     #    0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEA,
     #    0xF1,0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,0xF8,
     #    0xF9,0xFA} ;
+    AC_table = bytes([
+        0xFF, 0xC4, 0x00, 0xB5, 0x10,
+        0x00, 0x02, 0x01, 0x03, 0x03, 0x02, 0x04, 0x03,
+        0x05, 0x05, 0x04, 0x04, 0x00, 0x00, 0x01, 0x7D,
+        0x01, 0x02, 0x03, 0x00, 0x04, 0x11, 0x05, 0x12,
+        0x21, 0x31, 0x41, 0x06, 0x13, 0x51, 0x61, 0x07,
+        0x22, 0x71, 0x14, 0x32, 0x81, 0x91, 0xA1, 0x08,
+        0x23, 0x42, 0xB1, 0xC1, 0x15, 0x52, 0xD1, 0xF0,
+        0x24, 0x33, 0x62, 0x72, 0x82, 0x09, 0x0A, 0x16,
+        0x17, 0x18, 0x19, 0x1A, 0x25, 0x26, 0x27, 0x28,
+        0x29, 0x2A, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+        0x3A, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49,
+        0x4A, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
+        0x5A, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69,
+        0x6A, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
+        0x7A, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+        0x8A, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
+        0x99, 0x9A, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+        0xA8, 0xA9, 0xAA, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+        0xB7, 0xB8, 0xB9, 0xBA, 0xC2, 0xC3, 0xC4, 0xC5,
+        0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD2, 0xD3, 0xD4,
+        0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xE1, 0xE2,
+        0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA,
+        0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8,
+        0xF9, 0xFA
+    ])
 
     #   static unsigned char Comment[] =
     #   {0xFF,0xFE,0x00,0x44,0x20,
@@ -387,108 +436,183 @@ def put_header(width:int, height:int, quant:list[list[int]], file_path):
     #    0x76,0x65,0x72,0x73,0x69,0x74,0x79,0x2e,
     #    0x0a
     #   } ;
-    #    unsigned int qt[64] = {0} ;
+    Comment = bytes([
+        0xFF, 0xFE, 0x00, 0x44, 0x20,
+        0x45, 0x64, 0x75, 0x63, 0x61, 0x74, 0x69, 0x6f,
+        0x6e, 0x61, 0x6c, 0x20, 0x50, 0x75, 0x72, 0x70,
+        0x6f, 0x73, 0x65, 0x20, 0x4f, 0x6e, 0x6c, 0x79,
+        0x3b, 0x0a, 0x20, 0x53, 0x6f, 0x66, 0x74, 0x77,
+        0x61, 0x72, 0x65, 0x20, 0x63, 0x6f, 0x70, 0x79,
+        0x72, 0x69, 0x67, 0x68, 0x74, 0x20, 0x50, 0x75,
+        0x72, 0x64, 0x75, 0x65, 0x20, 0x55, 0x6e, 0x69,
+        0x76, 0x65, 0x72, 0x73, 0x69, 0x74, 0x79, 0x2e,
+        0x0a
+    ])
+    #    unsigned int qt[64] = {0} ; #quantization table
+    qt= [0]*64
     #    int      i,j ;
+    i=0
+    j=0
     #    unsigned char     p[64]  ;
+    p= bytearray(64)
 
     #    /* Image start header */
     #    p[0] = 0xff ; 
+    p[0]=0xff
     #    p[1] = SOI &0xff ;
+    p[1]= SOI & 0xff
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
+
+
 
     #    /* Quant table header */
+
     #    p[0] = 0xff ; 
+    p[0]=0xff
     #    p[1] = DQT &0xff ;
+    p[1] = DQT &0xff
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
 
     #    /* Lq_h,Lq_l,(Pq,Tq) */
     #    p[0] = 0 ;
+    p[0] = 0
     #    p[1] = 0x83 ;
+    p[1] = 0x83
     #    p[2] = 0x10 ;
+    p[2] = 0x10 
     #    fwrite(p,sizeof(char),3,fileout) ;
+    fileout.write(p[:3])
 
     #    /* Quant table content in zigzag order */
     #    for( i=0 ;i<8; i++ )
+    for i in range(8):
     #      for( j=0; j<8; j++ ){
+        for j in range(8):
     #        qt[(Zig[i][j])] = quant[i][j] ;
+            qt[(Zig[i][j])] = quant[i][j]
     #      }
     #    for( i=0 ; i<64; i++ ){
+    for i in range(64):
     #      p[0] = ( qt[i] >> 8 )& 0xff ;
+        p[0] = ( qt[i] >> 8 )& 0xff
     #      p[1] = qt[i] & 0xff ; 
+        p[1] = qt[i] & 0xff
     #      fwrite(p,sizeof(char),2,fileout) ;
+        fileout.write(p[:2])
     #    }
 
     #    /* Comments */
     #    fwrite(Comment,sizeof(char),sizeof(Comment)/sizeof(Comment[0]),fileout) ; 
+    fileout.write(Comment)
 
     #    /* Baseline Frame start marker */
     #    p[0] = 0xff ;
+    p[0] = 0xff
     #    p[1] = SOF0 & 0xff ;
+    p[1] = SOF0 & 0xff 
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
 
     #    /*  Lf_h,Lf_l,P,Y_h,Y_l,X_h,X_l */
 
     #    /* Lf and P */
     #    p[0] = 0 ;
+    p[0] = 0
     #    p[1] = 0x0b ;
+    p[1] = 0x0b
     #    p[2] = 0x08 ;
+    p[2] = 0x08
     #    fwrite(p,sizeof(char),3,fileout) ;
+    fileout.write(p[:3])
 
     #    /* Y */
     #    p[0] = (height >> 8 ) & 0xff ;
+    p[0] = (height >> 8 ) & 0xff
     #    p[1] = height & 0xff ;
+    p[1] = height & 0xff
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
 
     #    /* X */
     #    p[0] = (width >> 8 ) & 0xff ;
+    p[0] = (width >> 8 ) & 0xff 
     #    p[1] = width & 0xff ;
+    p[1] = width & 0xff 
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
 
     #    /* Nf, H1, V1, and Tq1 */
     #    p[0] = 0x1; /* Nf,Ci,(Hi,Vi),Tqi */
+    p[0] = 0x1; # Nf,Ci,(Hi,Vi),Tqi
     #    p[1] = 0x1;
+    p[1] = 0x1
     #    p[2] = 0x44;
+    p[2] = 0x44
     #    p[3] = 0;
+    p[3] = 0
     #    fwrite(p,sizeof(char),4,fileout) ;
+    fileout.write(p[:4])
 
     #    /* DHT for luminance DC value category */
     #    fwrite(DC_table,sizeof(char),sizeof(DC_table),fileout) ;
+    fileout.write(DC_table)
 
     #    /* DHT for luminance AC zero-run & value category */
     #    fwrite(AC_table,sizeof(char),sizeof(AC_table),fileout) ;
+    fileout.write(AC_table)
 
     #    /* Start scan segment */
     #    p[0] = 0xff;
+    p[0] = 0xff
     #    p[1] = SOS & 0xff;
+    p[1] = SOS & 0xff
     #    fwrite(p,sizeof(char),2,fileout) ;
+    fileout.write(p[:2])
 
     #    /* Ls, Ns, Csj */
     #    p[0] = 0x0;
+    p[0] = 0x0
     #    p[1] = 0x8;
+    p[1] = 0x8
     #    p[2] = 0x01;
+    p[2] = 0x01
     #    p[3] = 0x01;
+    p[3] = 0x01
     #    fwrite(p,sizeof(char),4,fileout) ;
-
+    fileout.write(p[:4])
+    
     #    /* (Tdj, Taj),Ss,Se,(Ah,Al) */
     #    p[0] = 0x0;
+    p[0] = 0x0
     #    p[1] = 0x0;
+    p[1] = 0x0
     #    p[2] = 0x3F;
+    p[2] = 0x3F
     #    p[3] = 0x0;
-    #    fwrite(p, sizeof(char),4,fileout) ;
-    # }
-    pass
+    p[3] = 0x0
+    #    fwrite(p, sizeof(char),4,fileout) ; }
+    fileout.write(p[:4])
+    
+    return
 
-def put_tail(file_path):
+def put_tail(fileout):
 
     # void put_tail(FILE * fileout)
     # {
     # unsigned char p[2] ;
+    p= bytearray(2)
 
     # p[0] = 0xff;
+    p[0] = 0xff
     # p[1] = EOI & 0xff;
+    p[1] = EOI & 0xff
     # fwrite(p,sizeof(char),2,fileout) ; 
     # }
-    pass
+    fileout.write(p[:2])
+    
+    return
 
 # =============================================================================
 # Main Encoding Pipeline
@@ -539,14 +663,14 @@ def JPEG_encode(img):
     # Call zero_pad
     byte_array, length = zero_pad(remaining_bits, byte_array, length)
     
-    # Return byte_code
-    return byte_array
+    with open("output.jpg", 'wb') as fileout:
+        #put header
+        put_header(img_width, img_height, QUANT, fileout)
+        fileout.write(byte_array)
 
-    #put header
-
-    #put tail
-    
-    pass
+        #put tail
+        put_tail(fileout)
+    return
 
 
 
@@ -576,8 +700,9 @@ def main():
         [ 0,  0,  0,  0,  0,  0,  0,  0]
     ]
 
+
     # Test complete JPEG encoding
-    print(JPEG_encode(test_block))
+    JPEG_encode(test_block)
 
     print("Finished testing.")
 
