@@ -8,8 +8,8 @@ from pathlib import Path
 from imageio import imwrite
 from PIL import Image
 
-from ct_preprocessing_starter_code.utils import get_case_path
-from ct_preprocessing_starter_code.visualize import hu_to_grayscale, DEFAULT_HU_MIN, DEFAULT_HU_MAX
+from starter_code.utils import get_case_path
+from starter_code.visualize import hu_to_grayscale, DEFAULT_HU_MIN, DEFAULT_HU_MAX
 
 
 def loadCT(cid, save=False):
@@ -28,8 +28,6 @@ def loadCT(cid, save=False):
 def loadMRI():
     pass
 
-def runDWT(image_data):
-    pass
 
 def toPILImage(image_data):
     PIL_image = Image.fromarray(image_data.astype(np.uint8))

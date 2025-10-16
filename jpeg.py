@@ -4,7 +4,7 @@ from quantization import *
 
 
 def main():
-    image_data = loadCT(123, save=True)
+    image_data = loadCT(123, save=False)
     image_data = runDCT(image_data)
     image_data = quantize(image_data, 'jpeg')
 
