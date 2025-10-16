@@ -12,87 +12,52 @@ JPEG_LUMINANCE_QUANTIZATION_TABLE = np.array([ # From https://www.sciencedirect.
     [72, 92, 95, 98, 112, 100, 103, 99]
 ])
 
-JPEG_CHROMINANCE_QUANTIZATION_TABLE = np.array([ # From https://www.sciencedirect.com/topics/engineering/quantization-table
-    [17, 18, 24, 47, 99, 99, 99, 99],
-    [18, 21, 26, 66, 99, 99, 99, 99],
-    [24, 26, 56, 99, 99, 99, 99, 99],
-    [47, 66, 99, 99, 99, 99, 99, 99],
-    [99, 99, 99, 99, 99, 99, 99, 99],
-    [99, 99, 99, 99, 99, 99, 99, 99],
-    [99, 99, 99, 99, 99, 99, 99, 99],
-    [99, 99, 99, 99, 99, 99, 99, 99]
-])
 
-
-def getQuantizationTable(algorithm, component):
+def getQuantizationTable(algorithm):
     '''
     Inputs: 
         - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
-        - component (str): The name of the component being quantized, i.e. "y" or "cr"
     Outputs:
         - quantization_table (8x8 np.ndarray): The quantization table for this algorithm
     '''
     match algorithm:
         case 'jpeg':
-            if component.lower() == 'y':
-                return JPEG_LUMINANCE_QUANTIZATION_TABLE
-            else:
-                return JPEG_CHROMINANCE_QUANTIZATION_TABLE
+            return JPEG_LUMINANCE_QUANTIZATION_TABLE
 
 
-def quantizeComponent(matrix, algorithm, component_name):
-    quantization_table = getQuantizationTable(algorithm, component_name)
+def quantize(unquantized_matrix, algorithm):
+    '''
+    Inputs: 
+        - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
+        - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+    Outputs:
+        - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
+    '''
+    quantization_table = getQuantizationTable(algorithm)
 
-    shape = matrix.shape
-    new_matrix = np.empty(shape, dtype=int)
-
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            new_matrix[i, j] = np.rint(matrix[i,j]/quantization_table)
-    return new_matrix
-
-
-def quantize(matrices, algorithm):
-    y_orig, cb_orig, cr_orig = matrices
-    
-    y_quantized =  quantizeComponent(y_orig,  algorithm, 'y')
-    cb_quantized = quantizeComponent(cb_orig, algorithm, 'cb')
-    cr_quantized = quantizeComponent(cr_orig, algorithm, 'cr')
-        
-    return (y_quantized, cb_quantized, cr_quantized)
-
-
-def decodeQuantizeComponent(matrix, algorithm, component_name):
-    quantization_table = getQuantizationTable(algorithm, component_name)
-
-    shape = matrix.shape
-    new_matrix = np.empty(shape, dtype=int)
+    shape = unquantized_matrix.shape
+    quantized_matrix = np.empty(shape, dtype=np.int16)
 
     for i in range(shape[0]):
         for j in range(shape[1]):
-            new_matrix[i, j] = np.rint(matrix[i,j] * quantization_table)
-    return new_matrix
+            quantized_matrix[i, j] = np.rint(unquantized_matrix[i,j]/quantization_table)
+    return quantized_matrix
 
 
-def decodeQuantization(quantized_matrices, algorithm):
-    y_orig, cb_orig, cr_orig = quantized_matrices
-    
-    y_unquantized =  decodeQuantizeComponent(y_orig,  algorithm, 'y')
-    cb_unquantized = decodeQuantizeComponent(cb_orig, algorithm, 'cb')
-    cr_unquantized = decodeQuantizeComponent(cr_orig, algorithm, 'cr')
-        
-    return (y_unquantized, cb_unquantized, cr_unquantized)
+def decodeQuantization(quantized_matrix, algorithm):
+    '''
+    Inputs: 
+        - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
+        - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+    Outputs:
+        - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
+    '''
+    quantization_table = getQuantizationTable(algorithm)
 
+    shape = quantized_matrix.shape
+    unquantized_matrix = np.empty(shape, dtype=np.int16)
 
-def test():
-    matrices = np.array(
-        [[[1], [2], [8]],
-         [[-3], [-1], [10]],
-         [[0], [0], [1]]]
-    )
-    new_matrices = quantize(matrices, 'test')
-    matrices = decodeQuantization(new_matrices, 'test')
-    print(matrices)
-
-if __name__ == '__main__':
-    test()
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            unquantized_matrix[i, j] = quantized_matrix[i,j] * quantization_table
+    return unquantized_matrix
