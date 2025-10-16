@@ -5,3 +5,4 @@ requests
 tqdm
 numpy
 scipy
+PyWavelets

@@ -1,10 +1,16 @@
 from scipy.fft import dct, idct
 import numpy as np
+from pywt import dwt2
 
 
 def reshapeImage(image_data):
+    '''
+    Inputs: 
+        - image_data (nxm np.ndarray): The data for a grayscale image, where each item is the grayscale of that pixel
+    Outputs:
+        - reshaped ((n/8)x(m/8)x8x8 np.ndarray): The same image, but with its data split into 8x8 chunks
+    '''
     h, w = image_data.shape
-
     reshaped = np.empty((h // 8, w // 8, 8, 8), dtype=np.int16)
 
     for i in range(h // 8):
@@ -15,8 +21,13 @@ def reshapeImage(image_data):
 
 
 def decodeReshapeImage(image_data):
+    '''
+    Inputs: 
+        - image_data (nxmx8x8 np.ndarray): Data for an image, split into 8x8 chunks of pixels
+    Outputs:
+        - reshaped ((n*8)x(m*8) np.ndarray): Reshaped data for the image, returning it from 8x8 chunks to regular form
+    '''
     h, w, _, _ = image_data.shape
-
     reshaped = np.empty((h * 8, w * 8), dtype=np.int16)
 
     for i in range(h):
@@ -27,9 +38,9 @@ def decodeReshapeImage(image_data):
 
 
 def runDCT(image_data):
-    reshaped = reshapeImage(image_data - 128)
-    reshaped  = dct(dct(reshaped.T,  norm='ortho').T, norm='ortho')
-    return reshaped
+    matrices = reshapeImage(image_data - 128)
+    matrices  = dct(dct(matrices.T,  norm='ortho').T, norm='ortho')
+    return matrices
     
     
 def decodeDCT(matrices):
@@ -39,3 +50,8 @@ def decodeDCT(matrices):
     image_data[image_data < 0] = 0
     return image_data
     
+def runDWT(image_data):
+    pass
+
+def decodeDWT(matrices):
+    pass
