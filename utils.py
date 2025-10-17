@@ -1,6 +1,31 @@
-from scipy.fft import dct, idct
 import numpy as np
-from pywt import dwt2
+from pathlib import Path
+from imageio import imwrite
+from PIL import Image
+
+
+def toPILImage(image_data):
+    PIL_image = Image.fromarray(image_data.astype(np.uint8))
+    PIL_image = PIL_image.convert('RGB')
+    return PIL_image
+
+
+def savePILImage(image, name='current_image'):
+    out_path = Path('tmp/images/')
+    if not out_path.exists():
+        out_path.mkdir()  
+
+    fpath = out_path / f'{name}.png'
+    image.save(fpath)
+
+
+def saveCTImage(image, name='current_image'):
+    out_path = Path('tmp/images/')
+    if not out_path.exists():
+        out_path.mkdir()  
+
+    fpath = out_path / f'{name}.png'
+    imwrite(str(fpath), image)
 
 
 def reshapeImage(image_data):
@@ -35,23 +60,3 @@ def decodeReshapeImage(image_data):
             reshaped[8*i:8*i+8, 8*j:8*j+8] = image_data[i, j]
 
     return reshaped
-
-
-def runDCT(image_data):
-    matrices = reshapeImage(image_data - 128)
-    matrices  = dct(dct(matrices.T,  norm='ortho').T, norm='ortho')
-    return matrices
-    
-    
-def decodeDCT(matrices):
-    image_data  = idct(idct(matrices.T,  norm='ortho').T, norm='ortho')
-    image_data = decodeReshapeImage(image_data) + 128
-    image_data[image_data > 255] = 255
-    image_data[image_data < 0] = 0
-    return image_data
-    
-def runDWT(image_data):
-    pass
-
-def decodeDWT(matrices):
-    pass
