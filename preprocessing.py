@@ -15,7 +15,7 @@ def loadCT(cid, save=False):
     vol = nib.load(str(case_path / "imaging.nii.gz"))
     
     vol_data = vol.get_fdata()
-    vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[0, :, :, 0].astype(np.uint8) # 0 to get first image in the structure
+    vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[0, :, :, 0].astype(np.uint8) # 0 in first index to get first image in the structure
 
     if save:
         utils.saveCTImage(vol_data, name='original_ct')

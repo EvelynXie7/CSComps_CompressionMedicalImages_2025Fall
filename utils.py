@@ -33,7 +33,8 @@ def reshapeImage(image_data):
     Inputs: 
         - image_data (nxm np.ndarray): The data for a grayscale image, where each item is the grayscale of that pixel
     Outputs:
-        - reshaped ((n/8)x(m/8)x8x8 np.ndarray): The same image, but with its data split into 8x8 chunks
+        - reshaped ((n/8)x(m/8)x8x8 np.ndarray): The same image, but with its data split into 8x8 chunks, 
+          and instead of values from 0 to 255, -128 to 127
     '''
     h, w = image_data.shape
     reshaped = np.empty((h // 8, w // 8, 8, 8), dtype=np.int16)
@@ -42,7 +43,7 @@ def reshapeImage(image_data):
         for j in range(w // 8):
             reshaped[i,j] = image_data[8*i:8*i+8, 8*j:8*j+8]
 
-    return reshaped
+    return reshaped - 128
 
 
 def decodeReshapeImage(image_data):
@@ -59,4 +60,4 @@ def decodeReshapeImage(image_data):
         for j in range(w):
             reshaped[8*i:8*i+8, 8*j:8*j+8] = image_data[i, j]
 
-    return reshaped
+    return reshaped + 128
