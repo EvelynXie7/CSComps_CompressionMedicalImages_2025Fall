@@ -22,6 +22,5 @@ def loadCT(cid, save=False):
 
     return vol_data.astype(np.int16)
 
-
 def loadMRI():
     pass

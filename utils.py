@@ -28,7 +28,7 @@ def saveCTImage(image, name='current_image'):
     imwrite(str(fpath), image)
 
 
-def reshapeImage(image_data):
+def reshapeImageForDCT(image_data):
     '''
     Inputs: 
         - image_data (nxm np.ndarray): The data for a grayscale image, where each item is the grayscale of that pixel
@@ -46,7 +46,7 @@ def reshapeImage(image_data):
     return reshaped - 128
 
 
-def decodeReshapeImage(image_data):
+def reshapeImageFromDCT(image_data):
     '''
     Inputs: 
         - image_data (nxmx8x8 np.ndarray): Data for an image, split into 8x8 chunks of pixels
