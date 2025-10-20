@@ -1,22 +1,23 @@
 from loading import *
 from dwt import *
-from quantization import *
+from metrics import *
 from utils import *
 
+def compressSPIHT(original_image_data):
+    compressed_image_data = runDWT(original_image_data)
+    return compressed_image_data
 
-def main():
-    # Load image
-    image_data = loadCT(123, save=True)
+def decompressSPIHT(compressed_image_data):
+    decompressed_image_data = decodeDWT(compressed_image_data)
+    return decompressed_image_data
 
-    # Run encoding algorithm
-    image_data = runDWT(image_data)
+def SPIHT():
+    original_image_data = loadCT(123, save=False)
+    compressed_image_data = compressSPIHT(original_image_data)
+    decompressed_image_data = decompressSPIHT(compressed_image_data)
 
-    # Run decoding algorithm
-    image_data = decodeDWT(image_data)
-
-    # Save new image
-    PILImage = toPILImage(image_data)
-    savePILImage(PILImage, 'ct_spiht')
+    saveImage(decompressed_image_data, 'ct_spiht')
+    showMetrics(original_image_data, decompressed_image_data)
 
 if __name__ == '__main__':
-    main()
+    SPIHT()

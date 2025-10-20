@@ -1,23 +1,29 @@
 from loading import *
 from dct import *
 from quantization import *
-from utils import toPILImage, savePILImage
 from metrics import *
+from utils import *
 
 
-def main():
+def compressJPEG(original_image_data):
+    compressed_image_data = runDCT(original_image_data)
+    compressed_image_data = quantize(compressed_image_data, 'jpeg')
+    return compressed_image_data
+
+
+def decompressJPEG(compressed_image_data):
+    decompressed_image_data = decodeQuantization(compressed_image_data, 'jpeg')
+    decompressed_image_data = decodeDCT(decompressed_image_data)
+    return decompressed_image_data
+
+
+def JPEG():
     original_image_data = loadCT(123, save=True)
-    image_data = runDCT(original_image_data)
-    image_data = quantize(image_data, 'jpeg')
+    compressed_image_data = compressJPEG(original_image_data)
+    decompressed_image_data = decompressJPEG(compressed_image_data)
 
-    image_data = decodeQuantization(image_data, 'jpeg')
-    image_data = decodeDCT(image_data)
-
-    # mse_stat = mse(original_image_data, image_data)
-    # psnr_stat = psnr(original_image_data, image_data)
-
-    # PILImage = toPILImage(image_data)
-    # savePILImage(PILImage, 'jpeg_ct')
+    saveImage(decompressed_image_data, 'ct_jpeg')
+    showMetrics(original_image_data, decompressed_image_data)
 
 if __name__ == '__main__':
-    main()
+    JPEG()

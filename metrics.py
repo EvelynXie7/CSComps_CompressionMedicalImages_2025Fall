@@ -1,6 +1,7 @@
 import numpy as np
+import math
 
-def mse(image1, image2):
+def getMSE(image1, image2):
     '''
     Inputs: 
         - image1: the first image
@@ -8,9 +9,12 @@ def mse(image1, image2):
     Outputs:
         - mse (float): the Mean Squared Error between the two images
     '''
-    pass
+    image_1_retyped = image1.astype(np.int64)
+    image_2_retyped = image2.astype(np.int64)
 
-def psnr(image1, image2):
+    return np.mean((image_1_retyped - image_2_retyped) ** 2)
+
+def getPSNR(image1, image2):
     '''
     Inputs: 
         - image1: the first image
@@ -18,9 +22,10 @@ def psnr(image1, image2):
     Outputs:
         - psnr (float): the Peak Signal to Noise Ratio between the two images
     '''
-    pass
+    mse = getMSE(image1, image2)
+    return 10 * math.log((255 ** 2) / mse, 10)
 
-def cr(compressed_image, orig_image):
+def getCR(compressed_image, orig_image):
     '''
     Inputs: 
         - compressed_image: the image/data needed to recreate the image post-compression
@@ -29,3 +34,12 @@ def cr(compressed_image, orig_image):
         - cr (float): the compression ratio, i.e. how much the image was compressed by
     '''
     pass
+
+def showMetrics(image1, image2):
+    mse = getMSE(image1, image2)
+    psnr = getPSNR(image1, image2)
+
+    print('\nCompression statistics:\n-----------')
+    print('MSE: ', round(mse, 5))
+    print('PSNR:', round(psnr, 5))
+    print()
