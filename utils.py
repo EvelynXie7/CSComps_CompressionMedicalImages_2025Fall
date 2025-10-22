@@ -10,17 +10,8 @@ def toPILImage(image_data):
     return PIL_image
 
 
-def savePILImage(image, name='current_image'):
-    out_path = Path('tmp/images/')
-    if not out_path.exists():
-        out_path.mkdir()  
-
-    fpath = out_path / f'{name}.png'
-    image.save(fpath)
-
-
 def saveCTImage(image, name='current_image'):
-    out_path = Path('tmp/images/')
+    out_path = Path('tmp/')
     if not out_path.exists():
         out_path.mkdir()  
 
@@ -30,4 +21,10 @@ def saveCTImage(image, name='current_image'):
 
 def saveImage(image_data, name='current_image'):
     image = toPILImage(image_data)
-    savePILImage(image, name)
+    
+    out_path = Path('tmp/')
+    if not out_path.exists():
+        out_path.mkdir()  
+
+    fpath = out_path / f'{name}.png'
+    image.save(fpath)

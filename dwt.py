@@ -2,6 +2,7 @@ import pywt
 import numpy as np
 
 WAVELET = 'db1' # Chose Daubechiesfilter because that's what https://www.sciencedirect.com/science/article/pii/S2352914818302405 did
+# Should probably change from 'db1' after doing more research
 
 def combineDWTData(LL, LH, HL, HH):
     L_data = np.vstack((LL, LH))
@@ -21,24 +22,23 @@ def separateDWTData(dwt_data):
     return LL, LH, HL, HH
 
 
-def runDWT(image_data):
+def runDWT(image_data, level):
+    if level == 0:
+        return image_data
+    
     LL, (LH, HL, HH) = pywt.dwt2(image_data, WAVELET)
-    # LL_LL, (LL_LH, LL_HL, LL_HH) = pywt.dwt2(LL, WAVELET)
-    # LL_LL_LL, (LL_LL_LH, LL_LL_HL, LL_LL_HH) = pywt.dwt2(LL_LL, WAVELET)
-
-    # LL_LL = combineDWTData(LL_LL_LL, LL_LL_LH, LL_LL_HL, LL_LL_HH)
-    # LL = combineDWTData(LL_LL, LL_LH, LL_HL, LL_HH)
-    dwt_data = combineDWTData(LL, LH, HL, HH)
+    LL_after_DWT = runDWT(LL, level - 1)
+    dwt_data = combineDWTData(LL_after_DWT, LH, HL, HH)
 
     return dwt_data
 
-def decodeDWT(dwt_data):
-    LL, LH, HL, HH = separateDWTData(dwt_data)
-    # LL_LL, LL_LH, LL_HL, LL_HH = separateDWTData(LL)
-    # LL_LL_LL, LL_LL_LH, LL_LL_HL, LL_LL_HH = separateDWTData(LL_LL)
 
-    # LL_LL = pywt.idwt2((LL_LL_LL, (LL_LL_LH, LL_LL_HL, LL_LL_HH)), WAVELET)
-    # LL = pywt.idwt2((LL_LL, (LL_LH, LL_HL, LL_HH)), WAVELET)
-    image_data = pywt.idwt2((LL, (LH, HL, HH)), WAVELET)
+def decodeDWT(dwt_data, level):
+    if level == 0:
+        return dwt_data
+    
+    LL, LH, HL, HH = separateDWTData(dwt_data)
+    LL_after_IDWT = decodeDWT(LL, level - 1)
+    image_data = pywt.idwt2((LL_after_IDWT, (LH, HL, HH)), WAVELET)
 
     return image_data
