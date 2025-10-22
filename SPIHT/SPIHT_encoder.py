@@ -9,6 +9,13 @@ Student Name: Evelyn Xie
 """
 
 import numpy as np
+from loading import *
+
+
+# Import the new DWT functions
+from dwt import runDWT, decodeDWT
+from utils import *
+
 
 
 def func_MySPIHT_Enc(m, max_bits, block_size, level):
@@ -271,14 +278,19 @@ def func_MyDescendant(x, y, set_type, m):
 
 
 if __name__ == "__main__":
-    print("Testing SPIHT_encoder.py...")
+    print("Testing SPIHT encoder with new DWT...")
     
-    test_m = np.random.randn(64, 64) * 10
-    test_m[0:32, 0:32] *= 10
+    # Test 1: Basic encoding
+    print("\nTest 1: Basic encoding")
+    test_image = loadCT(1, save=False)
     
-    bitstream = func_MySPIHT_Enc(test_m, max_bits=10000, block_size=64, level=3)
     
-    print(f"Input shape: {test_m.shape}")
-    print(f"Bitstream length: {len(bitstream)}")
-    print(f"Compression ratio: {(64*64*8) / len(bitstream):.2f}:1")
-    print("✓ SPIHT encoder test passed!")
+    # Apply DWT
+    I_W = runDWT(test_image, level=4)
+    print(f"  DWT output shape: {I_W.shape}")
+    
+    # Encode
+    bitstream = func_MySPIHT_Enc(I_W, max_bits=2000, block_size=256, level=4)
+    print(f"  Bitstream length: {len(bitstream)} bits")
+    print(f"  Compression ratio: {(64*64*8) / len(bitstream):.2f}:1")
+    print("  ✓ Test 1 passed!")
