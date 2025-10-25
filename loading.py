@@ -10,17 +10,19 @@ from starter_code.visualize import hu_to_grayscale, DEFAULT_HU_MIN, DEFAULT_HU_M
 import utils
 
 
-def loadCT(cid, save=False):
+def loadCT(cid):
+    IMAGE_IN_STRUCTURE = 0
+
     case_path = get_case_path(cid)
     vol = nib.load(str(case_path / "imaging.nii.gz"))
+    seg = nib.load(str(case_path / "segmentation.nii.gz"))
     
     vol_data = vol.get_fdata()
-    vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[0, :, :, 0].astype(np.uint8) # 0 in first index to get first image in the structure
+    vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[IMAGE_IN_STRUCTURE, :, :, 0]
+    seg_data = seg.get_fdata()[IMAGE_IN_STRUCTURE]
 
-    if save:
-        utils.saveCTImage(vol_data, name='original_ct')
-
-    return vol_data.astype(np.int16)
+    return vol_data, seg_data
 
 def loadMRI():
+    # Set up when have access to other computer to confirm there
     pass

@@ -13,19 +13,29 @@ JPEG_LUMINANCE_QUANTIZATION_TABLE = np.array([ # From https://www.sciencedirect.
 ])
 
 
-def getQuantizationTable(algorithm):
+def getJPEGQuantizationTable(Q):
     '''
     Inputs: 
         - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
     Outputs:
         - quantization_table (8x8 np.ndarray): The quantization table for this algorithm
     '''
-    match algorithm:
-        case 'jpeg':
-            return JPEG_LUMINANCE_QUANTIZATION_TABLE
+    assert Q >= 1 and Q <= 100
+
+    table = JPEG_LUMINANCE_QUANTIZATION_TABLE
+
+    if Q == 50:
+        return table
+    elif Q > 50:
+        table = table * ((100-Q) / 50)
+        table[table < 1] = 1
+        return table
+    else:
+        return table * (50 / Q)
 
 
-def quantize(unquantized_matrix, algorithm):
+
+def quantize(unquantized_matrix, Q):
     '''
     Inputs: 
         - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
@@ -33,18 +43,18 @@ def quantize(unquantized_matrix, algorithm):
     Outputs:
         - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
     '''
-    quantization_table = getQuantizationTable(algorithm)
+    quantization_table = getJPEGQuantizationTable(Q)
 
     shape = unquantized_matrix.shape
     quantized_matrix = np.empty(shape, dtype=np.int16)
 
     for i in range(shape[0]):
         for j in range(shape[1]):
-            quantized_matrix[i, j] = np.rint(unquantized_matrix[i,j]/quantization_table)
+            quantized_matrix[i, j] = np.rint(unquantized_matrix[i,j] / quantization_table)
     return quantized_matrix
 
 
-def decodeQuantization(quantized_matrix, algorithm):
+def decodeQuantization(quantized_matrix, Q):
     '''
     Inputs: 
         - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
@@ -52,7 +62,7 @@ def decodeQuantization(quantized_matrix, algorithm):
     Outputs:
         - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
     '''
-    quantization_table = getQuantizationTable(algorithm)
+    quantization_table = getJPEGQuantizationTable(Q)
 
     shape = quantized_matrix.shape
     unquantized_matrix = np.empty(shape, dtype=np.int16)
