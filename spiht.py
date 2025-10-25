@@ -12,7 +12,7 @@ def decompressSPIHT(compressed_image_data, level):
     return decompressed_image_data
 
 def SPIHT():
-    original_image_data = loadCT(123, save=False)
+    original_image_data = loadCT(123, save=False) # save=True to save the original image. 123 is arbitrary
     compressed_image_data = compressSPIHT(original_image_data, level=3)
     decompressed_image_data = decompressSPIHT(compressed_image_data, level=3)
 
