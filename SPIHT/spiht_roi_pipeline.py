@@ -91,7 +91,6 @@ def encode_roi(img, roi_mask, output_path, level=3, compression_ratio=2):
     roi_bitstream = func_MySPIHT_Enc(
         img_roi_dwt,
         max_bits=max_bits,
-        block_size=img.shape[0],
         level=level
     )
 
@@ -133,7 +132,6 @@ def encode_bg(img, roi_mask, output_path, level=3, compression_ratio=20):
     bg_bitstream = func_MySPIHT_Enc(
         img_bg_dwt,
         max_bits=max_bits,
-        block_size=img.shape[0],
         level=level
     )
 
