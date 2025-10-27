@@ -7,16 +7,17 @@ from JPEG_entropy import JPEG_encode
 
 
 def compressJPEG(original_image_data, Q):
-    compressed_image_data = runDCT(original_image_data)
-    compressed_image_data = quantize(compressed_image_data, Q)
-    JPEG_encode(compressed_image_data)
-    return compressed_image_data
+    image_data = runDCT(original_image_data)
+    image_data = quantize(image_data, Q)
+    image_for_encoding = reshapeImageFromDCT(image_data)
+    JPEG_encode(image_for_encoding)
+    return image_for_encoding
 
 
 def decompressJPEG(compressed_image_data, Q):
-    decompressed_image_data = decodeQuantization(compressed_image_data, Q)
-    decompressed_image_data = decodeDCT(decompressed_image_data)
-    return decompressed_image_data
+    image_data = decodeQuantization(compressed_image_data, Q)
+    image_data = decodeDCT(image_data)
+    return image_data
 
 
 def JPEG():

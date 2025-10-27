@@ -631,16 +631,14 @@ def JPEG_encode(img):
     
     Input: img - list of 8x8 lists (quantized DCT coefficients)
     Output: byte_code - encoded data as a list of bytes
-    
-
-    """    
+    """
 
     # block_code = ""
     block_code= ""
     # previous_dc_value = 0
     previous_dc=0
 
-    img = np.array(img)
+    # img = np.array(img)
 
     img_height = img.shape[0]  
     img_width = img.shape[1]   
