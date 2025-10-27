@@ -21,6 +21,7 @@ Original work includes Python implementation and integration of the encoding pip
 """
 
 import numpy as np
+from quantization import getJPEGQuantizationTable
 
 SOI = 0xFFD8   # Start of Image
 EOI = 0xFFD9   # End of Image
@@ -135,7 +136,7 @@ def VLI_encode(bitsize, value, block_code):
     return block_code
 
 
-def ZigZag(img, i0, j0):
+def ZigZag(block):
     """
     Gets 8x8 block from larger image and reorders into zigzag sequence.
     
@@ -151,11 +152,6 @@ def ZigZag(img, i0, j0):
     Uses ZIGZAG_ORDER lookup table from Figure 4(b), page 6.
     """
     #convert block coordinates to pixel coordiantes
-    row_start = i0 * 8
-    col_start = j0 * 8
-    
-    block = img[row_start:row_start+8, col_start:col_start+8]
-
     zigzag_sequence= []
 
     for raster_index in ZIGZAG_ORDER:
@@ -625,7 +621,7 @@ def put_tail(fileout):
 # Main Encoding Pipeline
 # =============================================================================
 
-def JPEG_encode(img):
+def JPEG_encode(img, Q):
     """
     Encode the quantized DCT coefficients.
     
@@ -638,20 +634,15 @@ def JPEG_encode(img):
     # previous_dc_value = 0
     previous_dc=0
 
-    # img = np.array(img)
-
-    img_height = img.shape[0]  
-    img_width = img.shape[1]   
-
-    num_blocks_vertical = img_height // 8 
-    num_blocks_horizontal = img_width // 8 
+    num_blocks_vertical = img.shape[0]
+    num_blocks_horizontal = img.shape[1]
     
     
     # for block in quantized_blocks:
     for i0 in range(num_blocks_vertical):
         for j0 in range(num_blocks_horizontal):
             # call zigzag
-            zigzag_sequence = ZigZag(img, i0, j0)
+            zigzag_sequence = ZigZag(img[i0, j0])
             
 
             # call encode function
@@ -670,7 +661,7 @@ def JPEG_encode(img):
     
     with open("output.jpg", 'wb') as fileout:
         #put header
-        put_header(img_width, img_height, QUANT, fileout)
+        put_header(num_blocks_vertical * 8, num_blocks_horizontal * 8, getJPEGQuantizationTable(Q), fileout)
         fileout.write(byte_array)
 
         #put tail

@@ -9,9 +9,8 @@ from JPEG_entropy import JPEG_encode
 def compressJPEG(original_image_data, Q):
     image_data = runDCT(original_image_data)
     image_data = quantize(image_data, Q)
-    image_for_encoding = reshapeImageFromDCT(image_data)
-    JPEG_encode(image_for_encoding)
-    return image_for_encoding
+    JPEG_encode(image_data, Q)
+    return image_data
 
 
 def decompressJPEG(compressed_image_data, Q):
