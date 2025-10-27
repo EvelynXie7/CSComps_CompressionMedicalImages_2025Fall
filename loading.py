@@ -5,8 +5,8 @@ CT Data and functions to load images from https://github.com/neheller/kits19#
 import numpy as np
 import nibabel as nib
 
-from starter_code.utils import get_case_path
-from starter_code.visualize import hu_to_grayscale, DEFAULT_HU_MIN, DEFAULT_HU_MAX
+from kits_utils import get_case_path
+from kits_visualize import hu_to_grayscale, DEFAULT_HU_MIN, DEFAULT_HU_MAX
 import utils
 
 
