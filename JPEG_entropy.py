@@ -103,36 +103,13 @@ def BitSize(value)->int:
 
 
 def VLI_encode(bitsize, value, block_code):
-    """
-    Encodes an integer using Variable Length Integer (VLI) encoding.
-    
-    Input: 
-        bitsize - number of bits needed (from calculate_bitsize)
-        value - integer to encode
-        block_code - current string of binary characters
-    Output: updated block_code with VLI bits appended
-
-    VLI encoding rules from Purdue lab Section 3, pages 7-8:
-    """
-    if bitsize==0:
+    if bitsize == 0:
         return block_code
-    # If positive value: 
-    #   convert to binary and take last bitsize bits
-    if value>=0:
-        binary=bin(value)[2:]
-        binary = binary.zfill(bitsize)
-        block_code += binary[-bitsize:]
-    
-    # if negative value:
-    #   Get 2's complement representation
-    #   convert to binary string
+    if value >= 0:
+        block_code += bin(value)[2:].zfill(bitsize)
     else:
-        twos_comp = (1 << bitsize) + value
-        binary = bin(twos_comp)[2:]
-        binary = binary.zfill(bitsize)
-        block_code += binary
-        
-    #add binary string to bitstring
+        code = (1 << bitsize) - 1 + value
+        block_code += bin(code & ((1 << bitsize) - 1))[2:].zfill(bitsize)
     return block_code
 
 
@@ -641,10 +618,11 @@ def JPEG_encode(img, Q):
     # for block in quantized_blocks:
     for i0 in range(num_blocks_vertical):
         for j0 in range(num_blocks_horizontal):
-            # call zigzag
-            zigzag_sequence = ZigZag(img[i0, j0])
+            # Get 8 x 8 block from image
+            block = img[i0, j0, :, :]
             
-
+            zigzag_sequence=ZigZag(block)
+            
             # call encode function
             block_code = block_encode(previous_dc, zigzag_sequence, block_code)
             
@@ -661,46 +639,9 @@ def JPEG_encode(img, Q):
     
     with open("output.jpg", 'wb') as fileout:
         #put header
-        put_header(num_blocks_vertical * 8, num_blocks_horizontal * 8, getJPEGQuantizationTable(Q), fileout)
+        put_header(num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q), fileout)
         fileout.write(byte_array)
 
         #put tail
         put_tail(fileout)
     return
-
-
-
-
-
-
-# =============================================================================
-# Testing and Main Function
-# =============================================================================
-
-def main():
-    """
-    Tests the JPEG entropy encoding implementation
-    Uses example from Purdue lab Section 3, pages 9-10.
-    """
-    
-    # Test block from Purdue lab
-    # Expected encoding: 7F F9 FF 00 3F E7 FD 26 80
-    test_block = [
-        [ 3,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  9,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0]
-    ]
-
-
-    # Test complete JPEG encoding
-    JPEG_encode(test_block)
-
-    print("Finished testing.")
-
-if __name__ == "__main__":
-    main()
