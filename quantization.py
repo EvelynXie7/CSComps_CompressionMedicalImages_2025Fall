@@ -27,11 +27,11 @@ def getJPEGQuantizationTable(Q):
     if Q == 50:
         return table
     elif Q > 50:
-        table = table * ((100-Q) / 50)
+        table = table * int((100-Q) / 50)
         table[table < 1] = 1
         return table
     else:
-        return table * (50 / Q)
+        return table * int(50 / Q)
 
 
 
