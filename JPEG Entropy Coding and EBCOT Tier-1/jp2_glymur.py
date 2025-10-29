@@ -243,7 +243,6 @@ roi_label=None, slice_range=None, max_slices=None):
     mask_data = mask_nifti.get_fdata()
     num_slices = mask_data.shape[2]
     
-    # Initialize processed_count
     processed_count=0
 
 
