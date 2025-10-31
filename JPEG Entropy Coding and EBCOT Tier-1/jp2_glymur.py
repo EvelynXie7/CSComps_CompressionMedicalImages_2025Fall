@@ -4,6 +4,7 @@ import nibabel as nib
 import os
 from pathlib import Path
 import cv2
+import time
 
 """
 Author: Justin Vaughn
@@ -546,12 +547,15 @@ def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, ma
             print("Case doesn't exist")
             continue
         try:
+            start_time = time.time()
             process_kits19_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
                 max_slices=max_slices
             )
+            end_time = time.time()
+            print(f"Elapsed time: {end_time - start_time}.")
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
         
@@ -590,16 +594,19 @@ def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2,
     #   Check if case_dir exists
     #   If not exists:
         if os.path.exists(case_dir) == False:
-    #       Print warning message that case doesn't exist, continue to next case
+            #Print warning message that case doesn't exist, continue to next case
             print("Case doesn't exist")
             continue
         try:
+            start_time = time.time()
             process_brats_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
                 max_slices=max_slices
             )
+            end_time = time.time()
+            print(f"Elapsed time: {end_time - start_time}.")
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
 

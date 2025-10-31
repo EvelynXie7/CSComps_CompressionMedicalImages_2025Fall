@@ -31,7 +31,7 @@ def JPEG():
     # saveImage(decompressed_image_data, f'ct_jpeg_{QUALITY}')
     # showMetrics(original_image_data, decompressed_image_data)
 
-# #test function for JPEG I used, wasn't sure how to get yours to run
+#test function for JPEG I used, wasn't sure how to get yours to run
 # def JPEG():
 #     QUALITY = 50
     
