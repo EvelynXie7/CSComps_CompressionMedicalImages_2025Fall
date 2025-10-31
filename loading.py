@@ -21,7 +21,7 @@ def loadCT(cid):
     vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[IMAGE_IN_STRUCTURE, :, :, 0]
     seg_data = seg.get_fdata()[IMAGE_IN_STRUCTURE]
 
-    return vol_data, seg_data
+    return vol_data
 
 def loadMRI():
     # Set up when have access to other computer to confirm there

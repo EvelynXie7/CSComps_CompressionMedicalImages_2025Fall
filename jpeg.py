@@ -23,15 +23,12 @@ def JPEG():
     CT_IMAGE = 123
     QUALITY = 50
 
-    original_image_data, roi_data = loadCT(CT_IMAGE)
+    original_image_data = loadCT(CT_IMAGE)
     compressed_image_data = compressJPEG(original_image_data, QUALITY)
-    # decompressed_image_data = decompressJPEG(compressed_image_data, QUALITY)
 
-    # saveImage(original_image_data, 'ct_jpeg_orig')
-    # saveImage(decompressed_image_data, f'ct_jpeg_{QUALITY}')
     # showMetrics(original_image_data, decompressed_image_data)
 
-#test function for JPEG I used, wasn't sure how to get yours to run
+# #test function for JPEG I used, wasn't sure how to get yours to run
 # def JPEG():
 #     QUALITY = 50
     
