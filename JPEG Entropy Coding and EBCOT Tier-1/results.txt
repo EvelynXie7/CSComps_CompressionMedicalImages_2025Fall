@@ -1,0 +1,18 @@
+Processing BraTS20_Training_002 with 4 modalities
+Completed processing BraTS20_Training_002
+Elapsed time: 24.705946922302246.
+Processing BraTS20_Training_003 with 4 modalities
+Completed processing BraTS20_Training_003
+Elapsed time: 27.10221576690674.
+Processing BraTS20_Training_004 with 4 modalities
+Completed processing BraTS20_Training_004
+Elapsed time: 24.742414236068726.
+Processing case_00000
+Completed processing case_00000
+Elapsed time: 2242.227123975754.
+Processing case_00001
+Completed processing case_00001
+Elapsed time: 2276.8321621418.
+Processing case_00002
+Completed processing case_00002
+Elapsed time: 859.1194717884064.
