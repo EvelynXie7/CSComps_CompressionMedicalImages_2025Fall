@@ -54,7 +54,7 @@ def quantize(unquantized_matrix, Q):
     return quantized_matrix
 
 
-def decodeQuantization(quantized_matrix, Q):
+def decodeQuantization(quantized_matrix, quantization_table):
     '''
     Inputs: 
         - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
@@ -62,8 +62,6 @@ def decodeQuantization(quantized_matrix, Q):
     Outputs:
         - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
     '''
-    quantization_table = getJPEGQuantizationTable(Q)
-
     shape = quantized_matrix.shape
     unquantized_matrix = np.empty(shape, dtype=np.int16)
 
