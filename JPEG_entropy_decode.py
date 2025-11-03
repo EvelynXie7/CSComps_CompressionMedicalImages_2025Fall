@@ -1,4 +1,67 @@
 import numpy as np
+from JPEG_entropy import ZIGZAG_ORDER
+from jpeg_huffman_tables import *
+
+
+def get_from_huffman(block_code, table):
+    for key, val in table.items():
+        if block_code[:val['length']] == val['code']:
+            return key, block_code[val['length']:]
+    raise Exception
+
+def decode_zigzag(zigzag_sequence):
+    zigzag_arr = np.empty((8, 8))
+    for i in range(64):
+        row_num = ZIGZAG_ORDER[i] // 8
+        col_num = ZIGZAG_ORDER[i] % 8
+
+        zigzag_arr[row_num, col_num] = zigzag_sequence[i]
+    return zigzag_arr
+
+
+def decode_VLI(bitsize, block_code):
+    # Get a value from a bitsize
+    if bitsize == 0:
+        return 0, block_code
+    
+    num = int(block_code[:bitsize], 2)
+    if num < 2 ** (bitsize-1): # Was originally negative, then turned positive, so must be turned back
+        # two's compliment
+        num = num - (1 << bitsize)
+        num += + 1
+    return num, block_code[bitsize:]
+
+
+def DC_decode(block_code):
+    VLC_val, block_code = get_from_huffman(block_code, DC_HUFFMAN_TABLE) # Get bitsize of VLI_diff
+    VLI_val, block_code = decode_VLI(VLC_val, block_code)
+    return VLI_val, block_code
+
+
+def AC_decode(current_dc, block_code):
+    zigzag_sequence = [current_dc]
+
+    while len(zigzag_sequence) < 64:
+        value, block_code = get_from_huffman(block_code, AC_HUFFMAN_TABLE)
+
+        if value == (0, 0): # EOB marker
+            return zigzag_sequence + [0 for _ in range(64 - len(zigzag_sequence))], block_code
+
+        zeroes_preceeding_val, val_bitsize = value
+        value, block_code = decode_VLI(val_bitsize, block_code)
+        zigzag_sequence += [0 for _ in range(zeroes_preceeding_val)] + [value]
+
+    return zigzag_sequence, block_code
+
+
+def block_decode(previous_dc, block_code):
+    VLI_val, block_code = DC_decode(block_code)
+    current_dc = previous_dc + VLI_val
+    zigzag_sequence, block_code = AC_decode(current_dc, block_code)
+    
+    return current_dc, zigzag_sequence, block_code
+
+
 
 def convert_decode(byte_array)-> str:
     """
@@ -12,8 +75,6 @@ def convert_decode(byte_array)-> str:
         block_code - string of '0' and '1' characters
 
     """
-
-    
     block_code = ""
     i = 0
     
@@ -66,26 +127,12 @@ def JPEG_decode(input_filename, num_blocks_vertical, num_blocks_horizontal):
         # Convert bytes to bit string
         block_code = convert_decode(encoded_data)
     
-    img = np.zeros((num_blocks_vertical, num_blocks_horizontal, 8, 8), dtype=int)
+    image = np.zeros((num_blocks_vertical, num_blocks_horizontal, 8, 8), dtype=int)
+    current_dc = 0
     
-    bit_position = 0
-    previous_dc = 0
+    for i in range(num_blocks_vertical):
+        for j in range(num_blocks_horizontal):
+            current_dc, zigzag_sequence, block_code = block_decode(current_dc, block_code)
+            image[i, j] = decode_zigzag(zigzag_sequence)
     
-    # Decode each block
-    for i0 in range(num_blocks_vertical):
-        for j0 in range(num_blocks_horizontal):
-            # Decode one block
-            zigzag_sequence, bit_position = block_decode(
-                block_code, bit_position, previous_dc
-            )
-            
-            # Update previous DC for next block
-            previous_dc = zigzag_sequence[0]
-            
-            # Convert zigzag sequence back to 8x8 block
-            block = zigzag_decode(zigzag_sequence)
-            
-            # Store in output image
-            img[i0, j0, :, :] = block
-    
-    return img
+    return image
