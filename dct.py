@@ -50,7 +50,7 @@ def decodeDCT(matrices):
     for i in range(h):
         for j in range(w):
             matrices[i, j] = idct(idct(matrices[i, j], axis=1, norm='ortho'), axis=0, norm='ortho')
-    image_data = reshapeImageFromDCT(image_data)
+    image_data = reshapeImageFromDCT(matrices)
     image_data[image_data > 255] = 255
     image_data[image_data < 0] = 0
     return image_data
