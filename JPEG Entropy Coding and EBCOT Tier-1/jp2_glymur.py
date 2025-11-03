@@ -202,9 +202,8 @@ def decode_and_combine(roi_path, bg_path, output_path):
 
     # Re-encode combined result to JPEG 2000
     glymur.Jp2k(output_path, data=combined, 
-            cratios=[5, 3, 2, 1],  
-            irreversible=False,
-            numres=5)
+                irreversible=False,
+                numres=5)
 
 def process_3d_volume_slicewise(image_path, mask_path, output_dir,
 roi_label=None, slice_range=None, max_slices=None):
