@@ -2,7 +2,7 @@
 SPIHT Encoder 
 --------------------------------------------
 Author: Evelyn Xie
-
+Revised by: Rui Shen
 - Handles arbitrary (non-square) image sizes 
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
