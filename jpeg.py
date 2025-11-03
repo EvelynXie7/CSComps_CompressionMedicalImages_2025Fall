@@ -21,15 +21,13 @@ def decompressJPEG():
 
 
 def JPEG():
-    CT_IMAGE = 123
-    QUALITY = 80
+    CASE_NUM = 123
+    SLICE_NUM = 0
+    QUALITY = 50
 
-    original_image_data = loadCT(CT_IMAGE)
+    original_image_data = loadCT(CASE_NUM, SLICE_NUM)
     compressJPEG(original_image_data, QUALITY)
     decompressed_image = decompressJPEG()
-
-    saveImage(decompressed_image, 'ct_jpeg_decoded')
-    # showMetrics(original_image_data, decompressed_image_data)
 
 if __name__ == '__main__':
     JPEG()
