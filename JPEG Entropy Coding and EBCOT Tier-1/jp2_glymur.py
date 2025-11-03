@@ -4,6 +4,7 @@ import nibabel as nib
 import os
 from pathlib import Path
 import cv2
+import time
 
 """
 Author: Justin Vaughn
@@ -145,9 +146,8 @@ def encode_roi(img, roi_mask, output_path):
     img_roi[~roi_mask]=0
 
     # Encode ROI image to JPEG 2000
-    glymur.Jp2k(output_path,data=img_roi, 
-                cratios=[5, 3, 2, 1], 
-                irreversible=False, 
+    glymur.Jp2k(output_path, data=img_roi, 
+                irreversible=False,
                 numres=5)
 
 def encode_bg(img, roi_mask, output_path):
@@ -169,9 +169,9 @@ def encode_bg(img, roi_mask, output_path):
     
 
     # Encode background image to JPEG 2000
-    glymur.Jp2k(output_path,data=img_bg, 
-                cratios=[50, 30, 20, 10], 
-                irreversible=False, 
+    glymur.Jp2k(output_path, data=img_bg, 
+                cratios=[30, 20, 10],  
+                irreversible=True,
                 numres=4)
     
 def decode_and_combine(roi_path, bg_path, output_path):
@@ -243,7 +243,6 @@ roi_label=None, slice_range=None, max_slices=None):
     mask_data = mask_nifti.get_fdata()
     num_slices = mask_data.shape[2]
     
-    # Initialize processed_count
     processed_count=0
 
 
@@ -299,7 +298,7 @@ roi_label=None, slice_range=None, max_slices=None):
         processed_count+=1
 
     # Print processed_count and base_name 
-    print(f"Processed {processed_count} slices for {base_name}.")
+    # print(f"Processed {processed_count} slices for {base_name}.")
     
     # Return processed_count
     return processed_count
@@ -342,7 +341,6 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None):
         print("Segmentation file not found.")
         return
 
-    # optional, comment out when running on full data sets for experiment
     print(f"Processing {case_name}")
 
     # Create case-specific output directory
@@ -432,7 +430,7 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
                 slice_range=None,
                 max_slices=max_slices
             )
-            print(f"  Processed {Path(image_path).stem}: {num_processed} slices")
+            # print(f"  Processed {Path(image_path).stem}: {num_processed} slices")
         except Exception as e:
             print(f"  Error processing {Path(image_path).stem}: {str(e)}")
     
@@ -543,16 +541,19 @@ def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, ma
         # Construct full case directory path
         case_dir=os.path.join(data_dir, case_name)
         # Check if case_dir exists
-        if os.path.exists(case_dir):
+        if not os.path.exists(case_dir):
             print("Case doesn't exist")
             continue
         try:
+            start_time = time.time()
             process_kits19_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
                 max_slices=max_slices
             )
+            end_time = time.time()
+            print(f"Elapsed time: {end_time - start_time}.")
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
         
@@ -591,30 +592,33 @@ def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2,
     #   Check if case_dir exists
     #   If not exists:
         if os.path.exists(case_dir) == False:
-    #       Print warning message that case doesn't exist, continue to next case
+            #Print warning message that case doesn't exist, continue to next case
             print("Case doesn't exist")
             continue
         try:
+            start_time = time.time()
             process_brats_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
                 max_slices=max_slices
             )
+            end_time = time.time()
+            print(f"Elapsed time: {end_time - start_time}.")
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
 
 if __name__ == "__main__":
     # Set output_directory
-    output_directory="path_to_output_directory"
+    output_directory="/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/JPEG Entropy Coding and EBCOT Tier-1/results"
 
 
-    process_brats_dataset(data_dir="path_to_data", 
+    process_brats_dataset(data_dir="/Users/justinvaughn/Downloads/brats/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData", 
                           output_dir= output_directory,
-                            max_cases=None, roi_label=[1, 2, 4], max_slices=None)
+                            max_cases=4, roi_label=[1, 2, 4], max_slices=None)
 
     
-    process_kits19_dataset(data_dir="path_to_data", 
-                           output_dir= output_directory,
-                           max_cases=None, roi_label=[2], max_slices=None)
+    # process_kits19_dataset(data_dir="/Users/justinvaughn/data/kits19/data", 
+    #                        output_dir= output_directory,
+    #                        max_cases=3, roi_label=[2], max_slices=None)
 

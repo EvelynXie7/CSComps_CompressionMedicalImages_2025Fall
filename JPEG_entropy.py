@@ -630,18 +630,17 @@ def JPEG_encode(img, Q):
             previous_dc = zigzag_sequence[0] 
 
 
-    return block_code, num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q)
     # Call convert_encode to get byte_code
     # remaining_bits, byte_array, length = convert_encode(block_code)
 
     # # Call zero_pad
     # byte_array, length = zero_pad(remaining_bits, byte_array, length)
     
-    # with open("output.jpg", 'wb') as fileout:
-    #     #put header
-    #     put_header(num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q), fileout)
-    #     fileout.write(byte_array)
+    with open("output.bin", 'wb') as fileout:
+        #put header
+        put_header(num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q), fileout)
+        fileout.write(byte_array)
 
-    #     #put tail
-    #     put_tail(fileout)
-    # return
+        #put tail
+        put_tail(fileout)
+    return
