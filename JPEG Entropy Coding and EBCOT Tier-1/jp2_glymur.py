@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import cv2
 import time
+import math
 
 """
 Author: Justin Vaughn
@@ -205,7 +206,7 @@ def decode_and_combine(roi_path, bg_path, output_path):
                 irreversible=False,
                 numres=5)
 
-def process_3d_volume_slicewise(image_path, mask_path, output_dir,
+def process_3d_volume_slicewise(image_path, mask_path, metrics_dir, output_dir,
 roi_label=None, slice_range=None, max_slices=None):
     """
     Process multiple slices from a 3D volume
@@ -230,6 +231,8 @@ roi_label=None, slice_range=None, max_slices=None):
     Output:
         number of slices processed
     """
+    f = open(metrics_dir, "a", buffering=1)
+
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
@@ -260,6 +263,7 @@ roi_label=None, slice_range=None, max_slices=None):
 
     # Loop through each slice_idx in slice_indices:
     for slice_idx in slice_indices:
+        start_time = time.time()
         if max_slices != None and processed_count >= max_slices:
             break
         
@@ -295,6 +299,11 @@ roi_label=None, slice_range=None, max_slices=None):
         decode_and_combine(roi_output, bg_output,combined_output)
         # Increment processed_count by 1
         processed_count+=1
+        end_time = time.time()
+
+        f.write(f"Elapsed time for {slice_prefix}: {end_time - start_time}.\n")
+
+
 
     # Print processed_count and base_name 
     # print(f"Processed {processed_count} slices for {base_name}.")
@@ -302,7 +311,7 @@ roi_label=None, slice_range=None, max_slices=None):
     # Return processed_count
     return processed_count
 
-def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None):
+def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None, metrics_dir=None):
     """
     Process a single KiTS19 case
 
@@ -355,7 +364,10 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None):
         roi_label=roi_label,
         slice_range=None,
         max_slices=max_slices,
+        metrics_dir=metrics_dir
     )
+
+    
 
     # optional, comment out when running on full data sets for experiment
     print(f"Completed processing {case_name}")
@@ -363,7 +375,7 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None):
 
 
 
-def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=None):
+def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=None, metrics_dir = None):
     """
     Process a single BraTS2020 case
     BraTS2020 structure:
@@ -427,7 +439,8 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
                 output_dir=case_output_dir,
                 roi_label=roi_label,
                 slice_range=None,
-                max_slices=max_slices
+                max_slices=max_slices,
+                metrics_dir=metrics_dir
             )
             # print(f"  Processed {Path(image_path).stem}: {num_processed} slices")
         except Exception as e:
@@ -519,7 +532,7 @@ def save_viewable_outputs(output_prefix, output_dir=None):
         print(f"Not found: {bg_path}")
     
 
-def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, max_slices=None):
+def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, max_slices=None,  metrics_dir=None):
     """
     Batch process KiTS19 cases using explicit iteration through case numbers
 
@@ -544,15 +557,14 @@ def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, ma
             print("Case doesn't exist")
             continue
         try:
-            start_time = time.time()
             process_kits19_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
-                max_slices=max_slices
+                max_slices=max_slices,
+                metrics_dir=metrics_dir
             )
-            end_time = time.time()
-            print(f"Elapsed time: {end_time - start_time}.")
+            
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
         
@@ -560,7 +572,7 @@ def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, ma
 
 
 
-def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2, 4], max_slices=None):
+def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2, 4], max_slices=None, metrics_dir= None):
     """
     Batch process BraTS2020 cases using explicit iteration through case numbers
 
@@ -595,29 +607,31 @@ def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2,
             print("Case doesn't exist")
             continue
         try:
-            start_time = time.time()
+
             process_brats_case(
                 case_dir=case_dir,
                 output_dir=output_dir,
                 roi_label=roi_label,
-                max_slices=max_slices
+                max_slices=max_slices,
+                metrics_dir=metrics_dir
             )
-            end_time = time.time()
-            print(f"Elapsed time: {end_time - start_time}.")
+            
         except Exception as e:
             print(f"Error processing {case_name}: {str(e)}")
 
 if __name__ == "__main__":
     # Set output_directory
     output_directory="/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/JPEG Entropy Coding and EBCOT Tier-1/results"
+    metrics_dir=""
 
-
-    process_brats_dataset(data_dir="/Users/justinvaughn/Downloads/brats/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData", 
-                          output_dir= output_directory,
-                            max_cases=4, roi_label=[1, 2, 4], max_slices=None)
+    # process_brats_dataset(data_dir="/Users/justinvaughn/Downloads/brats/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData", 
+    #                       output_dir= output_directory,
+    #                         max_cases=3, roi_label=[1, 2, 4], max_slices=None,                           
+    #             metrics_dir= "/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/metrics_dir.txt")
 
     
-    # process_kits19_dataset(data_dir="/Users/justinvaughn/data/kits19/data", 
-    #                        output_dir= output_directory,
-    #                        max_cases=3, roi_label=[2], max_slices=None)
+    process_kits19_dataset(data_dir="/Users/justinvaughn/data/kits19/data", 
+                           output_dir= output_directory,
+                           max_cases=1, roi_label=[2], max_slices=None,
+                           metrics_dir= "/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/metrics_dir.txt")
 
