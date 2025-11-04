@@ -93,7 +93,7 @@ def convert_decode(byte_array)-> str:
     return block_code
 
 
-def JPEG_decode(input_filename, num_blocks_vertical, num_blocks_horizontal):
+def JPEG_decode(input_filename):
     """
     Decode JPEG entropy-encoded data back to quantized DCT coefficients.
     Reverses the JPEG_encode function (only the entropy decoding portion).
@@ -111,6 +111,24 @@ def JPEG_decode(input_filename, num_blocks_vertical, num_blocks_horizontal):
     with open(input_filename, 'rb') as filein:
         file_content = filein.read()
         
+        #Start of Frame 0 marker
+        # indicates the beginning of the frame header which contains image info
+        sof0_index = file_content.find(b'\xFF\xC0')
+    
+        # Skip marker - 2 bytes, length - 2 bytes, and precision - 1 byte
+        offset = sof0_index + 5
+        
+        # Read height
+        height = (file_content[offset] << 8) | file_content[offset + 1]
+        offset += 2
+        
+        # Read width
+        width = (file_content[offset] << 8) | file_content[offset + 1]
+        
+        # Calculate number of blocks
+        num_blocks_vertical = (height + 7) // 8
+        num_blocks_horizontal = (width + 7) // 8
+
         # Find Start of Scan (SOS) marker
         sos_index = file_content.find(b'\xFF\xDA')
         
