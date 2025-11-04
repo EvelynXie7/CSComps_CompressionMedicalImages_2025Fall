@@ -91,12 +91,15 @@ def encode_roi(img, roi_mask, output_path, level=3, compression_ratio=2):
     
     k = 2 ** level
     img_roi, pad_hw = pad_to_multiple(img_roi, k)
-    
     img_roi_dwt = runDWT(img_roi, level)
     
-    original_bits = img.size * 8
+    roi_pixels = np.sum(roi_mask)  # Count ROI pixels
+    print(roi_pixels)
+    original_bits = roi_pixels * 32  # Use 32 bits per pixel for safety
     max_bits = int(original_bits / compression_ratio)
-    
+    # original_bits = img.size * 8
+    # max_bits = int(original_bits / compression_ratio)
+    print(f"ROI encoding: {roi_pixels} pixels, max_bits={max_bits}")
     roi_bitstream = func_MySPIHT_Enc(
         img_roi_dwt,
         max_bits=max_bits,
@@ -174,23 +177,36 @@ def reconstruct_slice(case_output_dir, slice_idx):
     roi = np.load(roi_npz)
     bg  = np.load(bg_npz)
     meta= np.load(meta_npz)
-
+    roi_mask = meta["roi_mask"]
     rec_roi = _decode_bitstream_to_spatial(roi["bitstream"], int(roi["level"]), roi["pad_hw"])
     rec_bg  = _decode_bitstream_to_spatial(bg["bitstream"],  int(bg["level"]),  bg["pad_hw"])
-
-    roi_mask = meta["roi_mask"]
+    import matplotlib.pyplot as plt
+    plt.imsave(f"debug_roi_slice_{slice_idx:03d}.png", rec_roi, cmap="gray", vmin=0, vmax=255)
+    plt.imsave(f"debug_bg_slice_{slice_idx:03d}.png", rec_bg, cmap="gray", vmin=0, vmax=255)
+    plt.imsave(f"debug_mask_slice_{slice_idx:03d}.png", roi_mask.astype(float), cmap="gray")
+    
+    print(f"ROI stats: min={rec_roi.min():.2f}, max={rec_roi.max():.2f}, mean={rec_roi.mean():.2f}")
+    print(f"BG stats: min={rec_bg.min():.2f}, max={rec_bg.max():.2f}, mean={rec_bg.mean():.2f}")
+    
+    
     # merge in normalized domain (you encoded normalized 0..255):
     merged_norm = np.where(roi_mask, rec_roi, rec_bg)
-
+    merged_norm = np.clip(merged_norm, 0, 255)
     # Optionally denormalize back to the original slice scale:
     norm_min = float(meta["norm_min"])
     norm_max = float(meta["norm_max"])
-    if norm_max > norm_min:
-        merged = (merged_norm / 255.0) * (norm_max - norm_min) + norm_min
-    else:
-        merged = np.zeros_like(merged_norm, dtype=np.float32)
+    # if norm_max > norm_min:
+    #     merged = (merged_norm / 255.0) * (norm_max - norm_min) + norm_min
+    # else:
+    #     merged = np.zeros_like(merged_norm, dtype=np.float32)
+    #return merged_norm.astype(np.float32), merged.astype(np.float32)
+    norm_min = float(meta["norm_min"])
+    norm_max = float(meta["norm_max"])
+    merged_hu = (merged_norm / 255.0) * (norm_max - norm_min) + norm_min
 
-    return merged_norm.astype(np.float32), merged.astype(np.float32)
+    return merged_norm.astype(np.float32), merged_hu.astype(np.float32)
+
+    
 
 def show_slice(img2d, title="Reconstructed (0..255)"):
     import matplotlib.pyplot as plt
@@ -203,7 +219,7 @@ def show_slice(img2d, title="Reconstructed (0..255)"):
 
 
 def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
-                        roi_ratio=2, bg_ratio=20, level=3):
+                        roi_ratio=1, bg_ratio=2, level=2):
     """
     Process a single KiTS19 case
     
@@ -238,18 +254,17 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
     
     for slice_idx in range(num_slices):
         slice_data = imaging_volume[slice_idx, :, :]
-        #slice_data = imaging_volume[:, :, slice_idx]
         slice_data = np.clip(slice_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)
-        slice_data = ((slice_data - DEFAULT_HU_MIN) / (DEFAULT_HU_MAX - DEFAULT_HU_MIN) * 255).astype(np.float32)
+        normalized = ((slice_data - DEFAULT_HU_MIN) / (DEFAULT_HU_MAX - DEFAULT_HU_MIN) * 255).astype(np.float32)
         
         roi_mask_slice = roi_mask_volume[slice_idx, :, :]
         
-        if slice_data.max() > slice_data.min():
-            normalized = (slice_data - slice_data.min()) / (slice_data.max() - slice_data.min()) * 255
-        else:
-            normalized = np.zeros_like(slice_data)
+        # if slice_data.max() > slice_data.min():
+        #     normalized = (slice_data - slice_data.min()) / (slice_data.max() - slice_data.min()) * 255
+        # else:
+        #     normalized = np.zeros_like(slice_data)
         
-        normalized = normalized.astype(np.float32)
+        # normalized = normalized.astype(np.float32)
         
         roi_output = os.path.join(case_output_dir, f"slice_{slice_idx:03d}_roi.npz")
         bg_output = os.path.join(case_output_dir, f"slice_{slice_idx:03d}_bg.npz")
@@ -260,8 +275,8 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
         meta_output = os.path.join(case_output_dir, f"slice_{slice_idx:03d}_meta.npz")
         np.savez(meta_output,
                 roi_mask=roi_mask_slice,
-                norm_min=float(slice_data.min()),
-                norm_max=float(slice_data.max()))
+                norm_min=float(DEFAULT_HU_MIN),  # -512
+                norm_max=float(DEFAULT_HU_MAX))  # 512
 
 
 def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=None,
@@ -300,8 +315,8 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
         num_slices = min(num_slices, max_slices)
     
     for slice_idx in range(num_slices):
-        slice_data = imaging_volume[:, :, slice_idx]
-        roi_mask_slice = roi_mask_volume[:, :, slice_idx]
+        slice_data = imaging_volume[slice_idx,:, :]
+        roi_mask_slice = roi_mask_volume[slice_idx,:, :]
         
         if slice_data.max() > slice_data.min():
             normalized = (slice_data - slice_data.min()) / (slice_data.max() - slice_data.min()) * 255
@@ -324,7 +339,7 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
 
 
 def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, 
-                           max_slices=None, roi_ratio=1, bg_ratio=2):
+                           max_slices=None, roi_ratio=2, bg_ratio=20):
     """
     Batch process KiTS19 cases
     
@@ -413,13 +428,13 @@ if __name__ == "__main__":
     # Set output directory
     output_directory = "./output"
     
-    # For KiTS19 - First 4 cases
+    # For KiTS19
     process_kits19_dataset(
         data_dir="./kits19/data",           
         output_dir=output_directory,
-        max_cases=1,
+        max_cases=8,
         roi_label=2,
-        max_slices=300
+        max_slices=1
     )
     # Find the just-written case folder
     case_dirs = sorted(
