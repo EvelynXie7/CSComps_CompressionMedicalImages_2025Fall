@@ -17,7 +17,7 @@ def decompressJPEG(filename="output.bin", Q=50):
     quantization_table = getJPEGQuantizationTable(Q)
     image_data = decodeQuantization(compressed_image_data, quantization_table)
     image_data = decodeDCT(image_data)
-    return compressed_image_data, image_data
+    return image_data
 
 
 def JPEG():
@@ -27,7 +27,7 @@ def JPEG():
 
     original_image_data = loadCT(CASE_NUM, SLICE_NUM)
     compressJPEG(original_image_data, QUALITY)
-    compressed_image, decompressed_image = decompressJPEG()
+    decompressed_image = decompressJPEG(filename="output.bin", Q=50)
     #maybe add visualization with mat plot lib to see if works
 
 if __name__ == '__main__':
