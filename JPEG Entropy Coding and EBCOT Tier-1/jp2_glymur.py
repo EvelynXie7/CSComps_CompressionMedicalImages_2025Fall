@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import cv2
 import time
-import math
 
 """
 Author: Justin Vaughn
@@ -15,11 +14,7 @@ Based on:
 Glymur library docs for JPEG 2000 (https://glymur.readthedocs.io/en/latest/)
 NiBabel for NIfTI format (https://nipy.org/nibabel/)
 NumPy array operations and mathematical functions:
-https://numpy.org/doc/stable/reference/routines.html
-Differential ROI concept from 
-C. Christopoulos, A. Skodras and T. Ebrahimi, 
-    "The JPEG2000 still image coding system: an overview," in IEEE Transactions on Consumer Electronics, 
-    vol. 46, no. 4, pp. 1103-1127, Nov. 2000, doi: 10.1109/30.920468.
+
   
 
 Works with KiTS19 (kidney tumors) and BraTS2020 (brain tumors) datasets.
@@ -406,12 +401,12 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
     
     # Construct image file paths for all modalities - ONLY ADD IF THEY EXIST
     for mode in modalities:
-        img_path = os.path.join(case_dir, f"{case_name}_{mode}.nii")
+        img_path = os.path.join(case_dir, f"{case_name}_{mode}.nii.gz")
         if os.path.exists(img_path):
             image_paths.append(img_path)
     
     # Construct mask file path
-    mask_path = os.path.join(case_dir, f"{case_name}_seg.nii")
+    mask_path = os.path.join(case_dir, f"{case_name}_seg.nii.gz")
     
     # Check if any image files were found
     if len(image_paths) == 0:
@@ -597,7 +592,7 @@ def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2,
 
     # Loop through case numbers from 0 to max_cases (exclusive):
     for i in range(1,max_cases+1):
-        case_name = f"BraTS20_Training_{i:03d}"
+        case_name = f"BraTS2021_{i:05d}"
     #   Construct full case directory path
         case_dir=os.path.join(data_dir, case_name)
     #   Check if case_dir exists
@@ -620,18 +615,17 @@ def process_brats_dataset(data_dir, output_dir, max_cases=None, roi_label=[1, 2,
             print(f"Error processing {case_name}: {str(e)}")
 
 if __name__ == "__main__":
-    # Set output_directory
-    output_directory="/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/JPEG Entropy Coding and EBCOT Tier-1/results"
-    metrics_dir=""
 
-    # process_brats_dataset(data_dir="/Users/justinvaughn/Downloads/brats/BraTS2020_TrainingData/MICCAI_BraTS2020_TrainingData", 
-    #                       output_dir= output_directory,
-    #                         max_cases=3, roi_label=[1, 2, 4], max_slices=None,                           
-    #             metrics_dir= "/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/metrics_dir.txt")
+
+
+    process_brats_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/BraTS2021_Training_Data", 
+                          output_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats",
+                            max_cases=None, roi_label=[1, 2, 4], max_slices=None,                           
+                metrics_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats/jp2_metric_brats.txt")
 
     
-    process_kits19_dataset(data_dir="/Users/justinvaughn/data/kits19/data", 
-                           output_dir= output_directory,
-                           max_cases=1, roi_label=[2], max_slices=None,
-                           metrics_dir= "/Users/justinvaughn/CSComps_CompressionMedicalImages_2025Fall/metrics_dir.txt")
+    process_kits19_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/kits19-master/data", 
+                           output_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits",
+                           max_cases=100, roi_label=[2], max_slices=None,
+                           metrics_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits/jp2_metric_kits.txt")
 

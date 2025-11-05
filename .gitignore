@@ -3,3 +3,5 @@ data
 *__pycache__*
 tmp
 .DS_Store
+BraTS2021_Training_Data/
+kits19-master/
