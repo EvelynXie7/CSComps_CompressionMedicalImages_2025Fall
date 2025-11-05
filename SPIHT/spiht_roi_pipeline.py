@@ -138,10 +138,7 @@ def encode_bg(img, roi_mask, output_path, level=3, compression_ratio=20):
     
     original_bits = img.size * 8
     max_bits = int(original_bits / compression_ratio)
-    print("max bit back ground is :")
-    print(max_bits)
-    
-    
+ 
     bg_bitstream = func_MySPIHT_Enc(
         img_bg_dwt,
         max_bits=max_bits,
@@ -220,7 +217,7 @@ def show_slice(img2d, title="Reconstructed (0..255)"):
 
 
 def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
-                        roi_ratio=1, bg_ratio=2, level=2):
+                        roi_ratio=2, bg_ratio=20, level=2):
     """
     Process a single KiTS19 case
     
@@ -340,7 +337,7 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
 
 
 def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, 
-                           max_slices=None, roi_ratio=1, bg_ratio=2):
+                           max_slices=None, roi_ratio=2, bg_ratio=20):
     """
     Batch process KiTS19 cases
     
@@ -433,9 +430,9 @@ if __name__ == "__main__":
     process_kits19_dataset(
         data_dir="./kits19/data",           
         output_dir=output_directory,
-        max_cases=4,
+        max_cases=1,
         roi_label=2,
-        max_slices=4
+        max_slices=2
     )
     # Find the just-written case folder
     case_dirs = sorted(

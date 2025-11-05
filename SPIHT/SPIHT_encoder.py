@@ -114,11 +114,10 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: Exclude top-left quarter of LL band (coefficients without meaningful descendants)
+    # LIS: Exclude coefficients without meaningful descendants
     half = bandsize // 2
     for i in range(bandsize):
         for j in range(bandsize):
-            # Skip the top-left quarter: positions where BOTH i < half AND j < half
             if i < half and j < half:
                 continue
             LIS.append([i, j, 0])
@@ -128,7 +127,7 @@ def init_spiht_lists(m, level):
 
 def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     """
-    SPIHT Encoder (Corrected with same-bitplane Type B processing)
+    SPIHT Encoder
 
     Parameters
     ----------
@@ -154,7 +153,7 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
 
     H, W = m.shape
     LIP, LIS, LSP = init_spiht_lists(m, level)
-    print(f"Initialized LIP={len(LIP)}, LIS={len(LIS)}, LL size={H//(2**level)}")
+   
 
     # ---------- HEADER ----------
     out[0] = H
@@ -163,13 +162,11 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     out[3] = level
     index = 4
     bitctr = 0
-    print(f"\nHeader written: [H={H}, W={W}, n_max={n_max}, level={level}]")
 
     # ==========================================================
     # MAIN ENCODING LOOP
     # ==========================================================
     while index < max_bits and n >= 0:
-        print(f"\n=== Bitplane n={n} ===")
 
         # Record number of significant coefficients before this pass
         LSP_len_before = len(LSP)
@@ -194,8 +191,8 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         if LIP_remove:
             LIP = np.delete(LIP, LIP_remove, axis=0)
 
-        # ---- SORTING PASS: LIS (with dynamic growth for Type B offspring) ----
-        print(f"  LIS pass: {len(LIS)} entries initially")
+        # ---- SORTING PASS: LIS ----
+
         
         # Convert to list for dynamic growth during iteration
         LIS_list = LIS.tolist() if isinstance(LIS, np.ndarray) else list(LIS)
@@ -255,12 +252,12 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                         (2*x + 1, 2*y),
                         (2*x + 1, 2*y + 1)
                     ]
-                    # Add offspring to END of LIS (will be processed in this same pass)
+                    # Add offspring to END of LIS 
                     for ox, oy in offspring:
                         if ox < H and oy < W:
                             LIS_list.append([ox, oy, 0])
                     
-                    # Remove this Type B entry (it's been fully processed)
+                    # Remove this Type B entry 
                     LIS_list.pop(idx)
                     idx -= 1  # Adjust index since we removed an element
                 else:
@@ -271,7 +268,6 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         
         # Convert back to numpy array for next bitplane
         LIS = np.array(LIS_list, dtype=np.int32) if LIS_list else np.array([], dtype=np.int32).reshape(0, 3)
-        print(f"  After LIS pass: index={index}, LIS has {len(LIS)} entries for next bitplane")
 
         # ---- REFINEMENT PASS ----
         if n < n_max:
@@ -287,35 +283,6 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         # Move to next bitplane
         n -= 1
 
-    print(f"Encoding complete. Bits used (after header): {bitctr}")
     return out[:index]
 
 
-if __name__ == "__main__":
-    print("\n" + "="*60)
-    print("Test: Debug High-Frequency Coefficients")
-    print("="*60)
-
-    m = np.zeros((16, 16), dtype=float)
-    m[0, 0] = 10.0   # LL coefficient
-    m[4, 4] = 6.0    # Child of (2,2)
-    m[8, 8] = 3.0    # Grandchild of (2,2)
-
-    print("Original:")
-    print(f"m[0,0] = {m[0,0]}, m[4,4] = {m[4,4]}, m[8,8] = {m[8,8]}")
-
-    # Encode
-    encoded = func_MySPIHT_Enc(m, 10000, level=2)
-    print(f"\nEncoded {len(encoded)} bits")
-
-    # Decode  
-    from SPIHT_decoder import func_MySPIHT_Dec
-    decoded = func_MySPIHT_Dec(encoded)
-    
-    print(f"\nDecoded:")
-    print(f"m[0,0] = {decoded[0,0]} (error: {abs(decoded[0,0] - m[0,0]):.2f})")
-    print(f"m[4,4] = {decoded[4,4]} (error: {abs(decoded[4,4] - m[4,4]):.2f})")
-    print(f"m[8,8] = {decoded[8,8]} (error: {abs(decoded[8,8] - m[8,8]):.2f})")
-    
-    print(f"\nMax reconstruction error: {np.max(np.abs(decoded - m)):.2f}")
-    print(f"Test PASSED: {np.max(np.abs(decoded - m)) < 1.0}")

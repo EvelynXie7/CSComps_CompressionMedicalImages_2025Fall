@@ -1,5 +1,7 @@
 """
-SPIHT_decoder.py - Corrected Version with same-bitplane Type B processing
+SPIHT_decoder.py 
+Author: Rui Shen
+Revised by: Evelyn Xie, Claude
 Python implementation of SPIHT decoder
 """
 
@@ -18,11 +20,10 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: Exclude top-left quarter of LL band (must match encoder!)
+    # LIS: Exclude coordinates without descedents 
     half = bandsize // 2
     for i in range(bandsize):
         for j in range(bandsize):
-            # Skip the top-left quarter: positions where BOTH i < half AND j < half
             if i < half and j < half:
                 continue
             LIS.append([i, j, 0])
@@ -32,7 +33,7 @@ def init_spiht_lists(m, level):
 
 def func_MySPIHT_Dec(bitstream):
     """
-    SPIHT Decoder (Corrected Version with same-bitplane Type B processing)
+    SPIHT Decoder
     
     Parameters:
     bitstream : numpy array
@@ -82,7 +83,7 @@ def func_MySPIHT_Dec(bitstream):
         
         LIP = new_LIP
         
-        # ===== SORTING PASS: LIS (with dynamic growth for Type B offspring) =====
+        # ===== SORTING PASS: LIS =====
         LIS_list = list(LIS)
         idx = 0
         
@@ -143,7 +144,7 @@ def func_MySPIHT_Dec(bitstream):
                 if bitstream[ctr] == 1:  # Significant
                     ctr += 1
                     
-                    # Add four offspring as Type A entries (will be processed in same pass)
+                    # Add four offspring as Type A entries
                     offspring_coords = [
                         (2*x, 2*y),
                         (2*x, 2*y+1),
@@ -156,13 +157,12 @@ def func_MySPIHT_Dec(bitstream):
                         if 0 <= ox < H and 0 <= oy < W:
                             LIS_list.append([ox, oy, 0])
                     
-                    # Remove this Type B entry (it's been fully processed)
+                    # Remove this Type B entry 
                     LIS_list.pop(idx)
                     idx -= 1  # Adjust index
                 else:  # Not significant
                     ctr += 1
-                    # Keep as Type B for next bitplane, no change needed
-            
+                    # Keep as Type B for next bitplane
             idx += 1
         
         LIS = LIS_list
@@ -189,33 +189,3 @@ def func_MySPIHT_Dec(bitstream):
     
     return m
 
-
-# Test code
-if __name__ == "__main__":
-    print("\n" + "="*60)
-    print("Test: Debug High-Frequency Coefficients")
-    print("="*60)
-
-    m = np.zeros((16, 16), dtype=float)
-    m[0, 0] = 10.0   # LL coefficient
-    m[4, 4] = 6.0    # Child of (2,2)
-    m[8, 8] = 3.0    # Grandchild of (2,2)
-
-    print("Original:")
-    print(f"m[0,0] = {m[0,0]}, m[4,4] = {m[4,4]}, m[8,8] = {m[8,8]}")
-
-    # Encode
-    from SPIHT_encoder import func_MySPIHT_Enc
-    encoded = func_MySPIHT_Enc(m, 10000, level=2)
-    print(f"\nEncoded {len(encoded)} bits")
-
-    # Decode  
-    decoded = func_MySPIHT_Dec(encoded)
-    
-    print(f"\nDecoded:")
-    print(f"m[0,0] = {decoded[0,0]} (error: {abs(decoded[0,0] - m[0,0]):.2f})")
-    print(f"m[4,4] = {decoded[4,4]} (error: {abs(decoded[4,4] - m[4,4]):.2f})")
-    print(f"m[8,8] = {decoded[8,8]} (error: {abs(decoded[8,8] - m[8,8]):.2f})")
-    
-    print(f"\nMax reconstruction error: {np.max(np.abs(decoded - m)):.2f}")
-    print(f"Test PASSED: {np.max(np.abs(decoded - m)) < 1.0}")
