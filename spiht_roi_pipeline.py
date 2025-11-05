@@ -93,13 +93,13 @@ def encode_roi(img, roi_mask, output_path, level=3, compression_ratio=2):
     img_roi, pad_hw = pad_to_multiple(img_roi, k)
     img_roi_dwt = runDWT(img_roi, level)
     
-    roi_pixels = np.sum(roi_mask)  # Count ROI pixels
-    print(roi_pixels)
-    original_bits = roi_pixels * 32  # Use 32 bits per pixel for safety
-    max_bits = int(original_bits / compression_ratio)
-    # original_bits = img.size * 8
+    # roi_pixels = np.sum(roi_mask)  # Count ROI pixels
+    # print(roi_pixels)
+    # original_bits = roi_pixels * 32  # Use 32 bits per pixel for safety
     # max_bits = int(original_bits / compression_ratio)
-    print(f"ROI encoding: {roi_pixels} pixels, max_bits={max_bits}")
+    original_bits = img.size * 8
+    max_bits = int(original_bits / compression_ratio)
+    #print(f"ROI encoding: {roi_pixels} pixels, max_bits={max_bits}")
     roi_bitstream = func_MySPIHT_Enc(
         img_roi_dwt,
         max_bits=max_bits,
@@ -138,7 +138,8 @@ def encode_bg(img, roi_mask, output_path, level=3, compression_ratio=20):
     
     original_bits = img.size * 8
     max_bits = int(original_bits / compression_ratio)
-    
+    print("max bit back ground is :")
+    print(max_bits)
     
     
     bg_bitstream = func_MySPIHT_Enc(
@@ -180,13 +181,13 @@ def reconstruct_slice(case_output_dir, slice_idx):
     roi_mask = meta["roi_mask"]
     rec_roi = _decode_bitstream_to_spatial(roi["bitstream"], int(roi["level"]), roi["pad_hw"])
     rec_bg  = _decode_bitstream_to_spatial(bg["bitstream"],  int(bg["level"]),  bg["pad_hw"])
-    import matplotlib.pyplot as plt
-    plt.imsave(f"debug_roi_slice_{slice_idx:03d}.png", rec_roi, cmap="gray", vmin=0, vmax=255)
-    plt.imsave(f"debug_bg_slice_{slice_idx:03d}.png", rec_bg, cmap="gray", vmin=0, vmax=255)
-    plt.imsave(f"debug_mask_slice_{slice_idx:03d}.png", roi_mask.astype(float), cmap="gray")
+    # import matplotlib.pyplot as plt
+    # plt.imsave(f"debug_roi_slice_{slice_idx:03d}.png", rec_roi, cmap="gray", vmin=0, vmax=255)
+    # plt.imsave(f"debug_bg_slice_{slice_idx:03d}.png", rec_bg, cmap="gray", vmin=0, vmax=255)
+    # plt.imsave(f"debug_mask_slice_{slice_idx:03d}.png", roi_mask.astype(float), cmap="gray")
     
-    print(f"ROI stats: min={rec_roi.min():.2f}, max={rec_roi.max():.2f}, mean={rec_roi.mean():.2f}")
-    print(f"BG stats: min={rec_bg.min():.2f}, max={rec_bg.max():.2f}, mean={rec_bg.mean():.2f}")
+    # print(f"ROI stats: min={rec_roi.min():.2f}, max={rec_roi.max():.2f}, mean={rec_roi.mean():.2f}")
+    # print(f"BG stats: min={rec_bg.min():.2f}, max={rec_bg.max():.2f}, mean={rec_bg.mean():.2f}")
     
     
     # merge in normalized domain (you encoded normalized 0..255):
@@ -248,7 +249,7 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
     case_output_dir = os.path.join(output_dir, case_name)
     os.makedirs(case_output_dir, exist_ok=True)
     
-    num_slices = imaging_volume.shape[2]
+    num_slices = imaging_volume.shape[0]
     if max_slices:
         num_slices = min(num_slices, max_slices)
     
@@ -280,7 +281,7 @@ def process_kits19_case(case_dir, output_dir, roi_label=2, max_slices=None,
 
 
 def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=None,
-                       roi_ratio=2, bg_ratio=20, level=3, modality='t1ce'):
+                       roi_ratio=2, bg_ratio=20, level=2, modality='t1ce'):
     """
     Process a single BraTS case
     
@@ -339,7 +340,7 @@ def process_brats_case(case_dir, output_dir, roi_label=[1, 2, 4], max_slices=Non
 
 
 def process_kits19_dataset(data_dir, output_dir, max_cases=None, roi_label=2, 
-                           max_slices=None, roi_ratio=2, bg_ratio=20):
+                           max_slices=None, roi_ratio=1, bg_ratio=2):
     """
     Batch process KiTS19 cases
     
@@ -432,9 +433,9 @@ if __name__ == "__main__":
     process_kits19_dataset(
         data_dir="./kits19/data",           
         output_dir=output_directory,
-        max_cases=8,
+        max_cases=2,
         roi_label=2,
-        max_slices=1
+        max_slices=2
     )
     # Find the just-written case folder
     case_dirs = sorted(
