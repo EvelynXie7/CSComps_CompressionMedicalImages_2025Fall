@@ -19,7 +19,7 @@ def get_full_case_id(cid):
 
 def get_case_path(cid):
     # Resolve location where data should be living
-    data_path = Path(__file__).parent / "data"
+    data_path = Path(__file__).parent / "kits19-master"
     if not data_path.exists():
         raise IOError(
             "Data path, {}, could not be resolved".format(str(data_path))
@@ -29,7 +29,7 @@ def get_case_path(cid):
     case_id = get_full_case_id(cid)
 
     # Make sure that case_id exists under the data_path
-    case_path = data_path / 'ct' / case_id
+    case_path = data_path / case_id
     if not case_path.exists():
         raise ValueError(
             "Case could not be found \"{}\"".format(case_path.name)
