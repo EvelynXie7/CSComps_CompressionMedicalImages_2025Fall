@@ -2,19 +2,21 @@
 SPIHT Encoder 
 --------------------------------------------
 Author: Evelyn Xie
-
+Revised by: Rui Shen, Claude
 - Handles arbitrary (non-square) image sizes 
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
 - Adds integer headers [H, W, n_max, level]
+- Fixed Type B processing to handle offspring in same bitplane
 
 """
 
+import sys, pathlib
+ROOT = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+
 import numpy as np
 from dwt import runDWT, decodeDWT
-from utils import *
-
-
 
 
 # Padding helpers
@@ -31,7 +33,6 @@ def unpad(img, pad_hw):
     pad_h, pad_w = pad_hw
     H, W = img.shape[:2]
     return img[:H - pad_h, :W - pad_w]
-
 
 
 # Descendant search
@@ -103,8 +104,9 @@ def func_MyDescendant(x, y, set_type, m):
 def init_spiht_lists(m, level):
     H, W = m.shape
     bandsize = H // (2 ** level) 
-    if bandsize == 1:
+    if bandsize < 2:
         raise ValueError(f"Invalid DWT level={level}: SPIHT requires LL ≥ 2×2.")
+    
     LIP, LIS = [], []
 
     # LIP: all LL coefficients
@@ -112,28 +114,21 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: remove 1/4 top-left region in each bandsize/2 block
-    if bandsize == 2:
-        # For 2×2 LL, only (0,0) is removed
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if i == 0 and j == 0:
-                    continue
-                LIS.append([i, j, 0])
-    else:
-        block_size = bandsize // 2
-        skip_size = bandsize // 4
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if (i % block_size) < skip_size and (j % block_size) < skip_size:
-                    continue
-                LIS.append([i, j, 0])
+    # LIS: Exclude top-left quarter of LL band (coefficients without meaningful descendants)
+    half = bandsize // 2
+    for i in range(bandsize):
+        for j in range(bandsize):
+            # Skip the top-left quarter: positions where BOTH i < half AND j < half
+            if i < half and j < half:
+                continue
+            LIS.append([i, j, 0])
+    
     return np.array(LIP, dtype=np.int32), np.array(LIS, dtype=np.int32), []
 
 
 def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     """
-    SPIHT Encoder (Optimized + Correct Bitplane Handling)
+    SPIHT Encoder (Corrected with same-bitplane Type B processing)
 
     Parameters
     ----------
@@ -199,14 +194,21 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         if LIP_remove:
             LIP = np.delete(LIP, LIP_remove, axis=0)
 
-        # ---- SORTING PASS: LIS ----
-        new_LIS = []
-        for entry in LIS:
+        # ---- SORTING PASS: LIS (with dynamic growth for Type B offspring) ----
+        print(f"  LIS pass: {len(LIS)} entries initially")
+        
+        # Convert to list for dynamic growth during iteration
+        LIS_list = LIS.tolist() if isinstance(LIS, np.ndarray) else list(LIS)
+        idx = 0
+        
+        while idx < len(LIS_list):
             if index >= max_bits:
                 print("[Warning] Output buffer full.")
                 return out[:index]
+            
+            entry = LIS_list[idx]
             x, y, typ = entry
-
+            
             if typ == 0:  # Type A
                 max_d = func_MyDescendant(x, y, 0, m)
                 if max_d >= 2**n:
@@ -225,19 +227,24 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                                 sign = 1 if m[ox, oy] >= 0 else 0
                                 out[index] = sign; index += 1; bitctr += 1
                                 LSP.append([ox, oy])
-                                
                             else:
                                 out[index] = 0; index += 1; bitctr += 1
                                 if len(LIP) > 0:
                                     LIP = np.vstack([LIP, [ox, oy]])
                                 else:
                                     LIP = np.array([[ox, oy]], dtype=np.int32)
-        
+                    
+                    # Convert to Type B if grandchildren exist
                     if (2*(2*x)) < H and (2*(2*y)) < W:
-                        new_LIS.append([x, y, 1])
+                        LIS_list[idx] = [x, y, 1]  # Update in place to Type B
+                    else:
+                        # No grandchildren, remove from LIS
+                        LIS_list.pop(idx)
+                        idx -= 1  # Adjust index since we removed an element
                 else:
                     out[index] = 0; index += 1; bitctr += 1
-                    new_LIS.append([x, y, 0])
+                    # Keep as Type A, no change needed
+            
             else:  # Type B
                 max_d = func_MyDescendant(x, y, 1, m)
                 if max_d >= 2**n:
@@ -248,13 +255,23 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                         (2*x + 1, 2*y),
                         (2*x + 1, 2*y + 1)
                     ]
+                    # Add offspring to END of LIS (will be processed in this same pass)
                     for ox, oy in offspring:
                         if ox < H and oy < W:
-                            new_LIS.append([ox, oy, 0])
+                            LIS_list.append([ox, oy, 0])
+                    
+                    # Remove this Type B entry (it's been fully processed)
+                    LIS_list.pop(idx)
+                    idx -= 1  # Adjust index since we removed an element
                 else:
                     out[index] = 0; index += 1; bitctr += 1
-                    new_LIS.append([x, y, 1])
-        LIS = np.array(new_LIS, dtype=np.int32)
+                    # Keep as Type B for next bitplane, no change needed
+            
+            idx += 1
+        
+        # Convert back to numpy array for next bitplane
+        LIS = np.array(LIS_list, dtype=np.int32) if LIS_list else np.array([], dtype=np.int32).reshape(0, 3)
+        print(f"  After LIS pass: index={index}, LIS has {len(LIS)} entries for next bitplane")
 
         # ---- REFINEMENT PASS ----
         if n < n_max:
@@ -272,3 +289,33 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
 
     print(f"Encoding complete. Bits used (after header): {bitctr}")
     return out[:index]
+
+
+if __name__ == "__main__":
+    print("\n" + "="*60)
+    print("Test: Debug High-Frequency Coefficients")
+    print("="*60)
+
+    m = np.zeros((16, 16), dtype=float)
+    m[0, 0] = 10.0   # LL coefficient
+    m[4, 4] = 6.0    # Child of (2,2)
+    m[8, 8] = 3.0    # Grandchild of (2,2)
+
+    print("Original:")
+    print(f"m[0,0] = {m[0,0]}, m[4,4] = {m[4,4]}, m[8,8] = {m[8,8]}")
+
+    # Encode
+    encoded = func_MySPIHT_Enc(m, 10000, level=2)
+    print(f"\nEncoded {len(encoded)} bits")
+
+    # Decode  
+    from SPIHT_decoder import func_MySPIHT_Dec
+    decoded = func_MySPIHT_Dec(encoded)
+    
+    print(f"\nDecoded:")
+    print(f"m[0,0] = {decoded[0,0]} (error: {abs(decoded[0,0] - m[0,0]):.2f})")
+    print(f"m[4,4] = {decoded[4,4]} (error: {abs(decoded[4,4] - m[4,4]):.2f})")
+    print(f"m[8,8] = {decoded[8,8]} (error: {abs(decoded[8,8] - m[8,8]):.2f})")
+    
+    print(f"\nMax reconstruction error: {np.max(np.abs(decoded - m)):.2f}")
+    print(f"Test PASSED: {np.max(np.abs(decoded - m)) < 1.0}")
