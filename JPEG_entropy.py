@@ -22,6 +22,7 @@ Original work includes Python implementation and integration of the encoding pip
 
 import numpy as np
 from quantization import getJPEGQuantizationTable
+import os
 
 SOI = 0xFFD8   # Start of Image
 EOI = 0xFFD9   # End of Image
@@ -598,7 +599,7 @@ def put_tail(fileout):
 # Main Encoding Pipeline
 # =============================================================================
 
-def JPEG_encode(img, Q):
+def JPEG_encode(img, Q, filedir, filename):
     """
     Encode the quantized DCT coefficients.
     
@@ -634,8 +635,11 @@ def JPEG_encode(img, Q):
 
     # Call zero_pad
     byte_array, length = zero_pad(remaining_bits, byte_array, length)
-    
-    with open("output.bin", 'wb') as fileout:
+
+    if not os.path.exists(filedir): 
+        os.makedirs(filedir)
+        
+    with open(filedir+'/'+filename, 'wb') as fileout:
         #put header
         put_header(num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q), fileout)
         fileout.write(byte_array)
