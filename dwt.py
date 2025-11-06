@@ -5,9 +5,9 @@ WAVELET = 'db1' # Chose Daubechiesfilter because that's what https://www.science
 # Should probably change from 'db1' after doing more research
 
 def combineDWTData(LL, LH, HL, HH):
-    L_data = np.vstack((LL, LH))
-    H_data = np.vstack((HL, HH))
-    return np.hstack((L_data, H_data))
+    L_data = np.hstack((LL, LH))
+    H_data = np.hstack((HL, HH))
+    return np.vstack((L_data, H_data))
 
 
 def separateDWTData(dwt_data):
