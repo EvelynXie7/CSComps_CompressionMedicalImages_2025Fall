@@ -1,3 +1,12 @@
+"""
+dwt.py
+
+Discrete Wavelet Transform for SPIHT
+
+Author: Lucie Wolf
+Revised by: Evelyn Xie
+"""
+
 import pywt
 import numpy as np
 
