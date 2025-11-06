@@ -1,5 +1,7 @@
 """
-SPIHT_decoder.py - Fixed Version
+SPIHT_decoder.py 
+Author: Rui Shen
+Revised by: Evelyn Xie, Claude
 Python implementation of SPIHT decoder
 """
 
@@ -8,8 +10,9 @@ import numpy as np
 def init_spiht_lists(m, level):
     H, W = m.shape
     bandsize = H // (2 ** level) 
-    if bandsize <= 1:
+    if bandsize < 2:
         raise ValueError(f"Invalid DWT level={level}: SPIHT requires LL ≥ 2×2.")
+    
     LIP, LIS = [], []
 
     # LIP: all LL coefficients
@@ -17,27 +20,20 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: remove 1/4 top-left region
-    if bandsize == 2:
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if i == 0 and j == 0:
-                    continue
-                LIS.append([i, j, 0])
-    else:
-        block_size = bandsize // 2
-        skip_size = bandsize // 4
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if (i % block_size) < skip_size and (j % block_size) < skip_size:
-                    continue
-                LIS.append([i, j, 0])
+    # LIS: Exclude coordinates without descedents 
+    half = bandsize // 2
+    for i in range(bandsize):
+        for j in range(bandsize):
+            if i < half and j < half:
+                continue
+            LIS.append([i, j, 0])
+    
     return LIP, LIS, []
 
 
 def func_MySPIHT_Dec(bitstream):
     """
-    SPIHT Decoder (Fixed Version)
+    SPIHT Decoder
     
     Parameters:
     bitstream : numpy array
@@ -72,11 +68,11 @@ def func_MySPIHT_Dec(bitstream):
                 if ctr >= len(bitstream):
                     return m
                 
-                # Get sign bit
-                if bitstream[ctr] > 0:
-                    m[x, y] = 2**n + 2**(n-1) 
+                # Get sign bit and initialize to midpoint
+                if bitstream[ctr] == 1:
+                    m[x, y] = 1.5 * (2**n)
                 else:
-                    m[x, y] = -2**n - 2**(n-1)
+                    m[x, y] = -1.5 * (2**n)
                 ctr += 1
                 
                 # Move to LSP
@@ -88,11 +84,14 @@ def func_MySPIHT_Dec(bitstream):
         LIP = new_LIP
         
         # ===== SORTING PASS: LIS =====
-        new_LIS = []
-        for entry in LIS:
+        LIS_list = list(LIS)
+        idx = 0
+        
+        while idx < len(LIS_list):
             if ctr >= len(bitstream):
                 return m
             
+            entry = LIS_list[idx]
             x, y, typ = entry
             
             if typ == 0:  # Type A
@@ -118,11 +117,11 @@ def func_MySPIHT_Dec(bitstream):
                             if ctr >= len(bitstream):
                                 return m
                             
-                            # Get sign bit
+                            # Get sign bit and initialize to midpoint
                             if bitstream[ctr] == 1:
-                                m[ox, oy] = 2**n + 2**(n-1)
+                                m[ox, oy] = 1.5 * (2**n)
                             else:
-                                m[ox, oy] = -2**n - 2**(n-1)
+                                m[ox, oy] = -1.5 * (2**n)
                             ctr += 1
                             
                             LSP.append([ox, oy])
@@ -132,29 +131,41 @@ def func_MySPIHT_Dec(bitstream):
                     
                     # Check if grandchildren exist
                     if (2*(2*x) < H) and (2*(2*y) < W):
-                        new_LIS.append([x, y, 1])  # Convert to Type B
+                        LIS_list[idx] = [x, y, 1]  # Convert to Type B
+                    else:
+                        # No grandchildren, remove from LIS
+                        LIS_list.pop(idx)
+                        idx -= 1  # Adjust index
                 else:  # Not significant
                     ctr += 1
-                    new_LIS.append([x, y, 0])  # Keep as Type A
+                    # Keep as Type A, no change needed
             
             else:  # Type B
                 if bitstream[ctr] == 1:  # Significant
                     ctr += 1
                     
                     # Add four offspring as Type A entries
-                    offspring = [
-                        [2*x, 2*y, 0],
-                        [2*x, 2*y+1, 0],
-                        [2*x+1, 2*y, 0],
-                        [2*x+1, 2*y+1, 0]
+                    offspring_coords = [
+                        (2*x, 2*y),
+                        (2*x, 2*y+1),
+                        (2*x+1, 2*y),
+                        (2*x+1, 2*y+1)
                     ]
-                    # Add offspring for NEXT bitplane processing
-                    new_LIS.extend(offspring)
+                    
+                    for ox, oy in offspring_coords:
+                        # CRITICAL: Check bounds before adding to LIS
+                        if 0 <= ox < H and 0 <= oy < W:
+                            LIS_list.append([ox, oy, 0])
+                    
+                    # Remove this Type B entry 
+                    LIS_list.pop(idx)
+                    idx -= 1  # Adjust index
                 else:  # Not significant
                     ctr += 1
-                    new_LIS.append([x, y, 1])  # Keep as Type B
+                    # Keep as Type B for next bitplane
+            idx += 1
         
-        LIS = new_LIS
+        LIS = LIS_list
         
         # ===== REFINEMENT PASS =====
         if n < n_max:
@@ -167,7 +178,7 @@ def func_MySPIHT_Dec(bitstream):
                 refine_bit = bitstream[ctr]
                 ctr += 1
                 
-                # Refine the value
+                # Refine the value by ±2^(n-1)
                 if refine_bit == 1:
                     m[x, y] = m[x, y] + (2**(n-1)) * val_sign
                 else:
@@ -177,33 +188,3 @@ def func_MySPIHT_Dec(bitstream):
         n -= 1
     
     return m
-
-
-# Test code
-if __name__ == "__main__":
-    bitstream = np.array([
-        8, 8, 1, 2,
-        1, 1, 0, 0, 0,
-        0, 0, 0,
-        0, 0, 0,
-        0, 0, 0,
-        1
-    ], dtype=np.int32)
-
-    result = func_MySPIHT_Dec(bitstream)
-    print("Decoded Image:")
-    print(result)
-    
-    expected_m = np.array([
-        [3.5, 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-        [0., 0., 0., 0., 0., 0., 0., 0.],
-    ], dtype=float)
-    print("\nExpected:")
-    print(expected_m)
-    print(f"\nMatch: {np.allclose(result, expected_m)}")

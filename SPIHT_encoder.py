@@ -2,24 +2,21 @@
 SPIHT Encoder 
 --------------------------------------------
 Author: Evelyn Xie
-Revised by: Rui Shen
+Revised by: Rui Shen, Claude
 - Handles arbitrary (non-square) image sizes 
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
 - Adds integer headers [H, W, n_max, level]
+- Fixed Type B processing to handle offspring in same bitplane
 
 """
 
 import sys, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))              # project root (so 'kits19' is importable)
-#sys.path.insert(0, str(ROOT / "kits19"))   # allow 'from starter_code ...' if you prefer
+sys.path.insert(0, str(ROOT))
 
 import numpy as np
 from dwt import runDWT, decodeDWT
-#from kits19.starter_code.utils import * 
-
-
 
 
 # Padding helpers
@@ -36,7 +33,6 @@ def unpad(img, pad_hw):
     pad_h, pad_w = pad_hw
     H, W = img.shape[:2]
     return img[:H - pad_h, :W - pad_w]
-
 
 
 # Descendant search
@@ -108,8 +104,9 @@ def func_MyDescendant(x, y, set_type, m):
 def init_spiht_lists(m, level):
     H, W = m.shape
     bandsize = H // (2 ** level) 
-    if bandsize == 1:
+    if bandsize < 2:
         raise ValueError(f"Invalid DWT level={level}: SPIHT requires LL ≥ 2×2.")
+    
     LIP, LIS = [], []
 
     # LIP: all LL coefficients
@@ -117,28 +114,20 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: remove 1/4 top-left region in each bandsize/2 block
-    if bandsize == 2:
-        # For 2×2 LL, only (0,0) is removed
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if i == 0 and j == 0:
-                    continue
-                LIS.append([i, j, 0])
-    else:
-        block_size = bandsize // 2
-        skip_size = bandsize // 4
-        for i in range(bandsize):
-            for j in range(bandsize):
-                if (i % block_size) < skip_size and (j % block_size) < skip_size:
-                    continue
-                LIS.append([i, j, 0])
+    # LIS: Exclude coefficients without meaningful descendants
+    half = bandsize // 2
+    for i in range(bandsize):
+        for j in range(bandsize):
+            if i < half and j < half:
+                continue
+            LIS.append([i, j, 0])
+    
     return np.array(LIP, dtype=np.int32), np.array(LIS, dtype=np.int32), []
 
 
 def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     """
-    SPIHT Encoder (Optimized + Correct Bitplane Handling)
+    SPIHT Encoder
 
     Parameters
     ----------
@@ -164,7 +153,7 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
 
     H, W = m.shape
     LIP, LIS, LSP = init_spiht_lists(m, level)
-    print(f"Initialized LIP={len(LIP)}, LIS={len(LIS)}, LL size={H//(2**level)}")
+   
 
     # ---------- HEADER ----------
     out[0] = H
@@ -173,13 +162,11 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     out[3] = level
     index = 4
     bitctr = 0
-    print(f"\nHeader written: [H={H}, W={W}, n_max={n_max}, level={level}]")
 
     # ==========================================================
     # MAIN ENCODING LOOP
     # ==========================================================
     while index < max_bits and n >= 0:
-        print(f"\n=== Bitplane n={n} ===")
 
         # Record number of significant coefficients before this pass
         LSP_len_before = len(LSP)
@@ -189,7 +176,6 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         for k in range(len(LIP)):
             if index >= max_bits:
                 print("[Warning] Output buffer full.")
-                
                 return out[:index]
             x, y = LIP[k]
             if abs(m[x, y]) >= 2**n:
@@ -206,15 +192,20 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
             LIP = np.delete(LIP, LIP_remove, axis=0)
 
         # ---- SORTING PASS: LIS ----
-        new_LIS = []
-        for entry in LIS:
+
+        
+        # Convert to list for dynamic growth during iteration
+        LIS_list = LIS.tolist() if isinstance(LIS, np.ndarray) else list(LIS)
+        idx = 0
+        
+        while idx < len(LIS_list):
             if index >= max_bits:
                 print("[Warning] Output buffer full.")
-                print("LIS")
-                print(index)
                 return out[:index]
+            
+            entry = LIS_list[idx]
             x, y, typ = entry
-
+            
             if typ == 0:  # Type A
                 max_d = func_MyDescendant(x, y, 0, m)
                 if max_d >= 2**n:
@@ -233,19 +224,24 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                                 sign = 1 if m[ox, oy] >= 0 else 0
                                 out[index] = sign; index += 1; bitctr += 1
                                 LSP.append([ox, oy])
-                                
                             else:
                                 out[index] = 0; index += 1; bitctr += 1
                                 if len(LIP) > 0:
                                     LIP = np.vstack([LIP, [ox, oy]])
                                 else:
                                     LIP = np.array([[ox, oy]], dtype=np.int32)
-        
+                    
+                    # Convert to Type B if grandchildren exist
                     if (2*(2*x)) < H and (2*(2*y)) < W:
-                        new_LIS.append([x, y, 1])
+                        LIS_list[idx] = [x, y, 1]  # Update in place to Type B
+                    else:
+                        # No grandchildren, remove from LIS
+                        LIS_list.pop(idx)
+                        idx -= 1  # Adjust index since we removed an element
                 else:
                     out[index] = 0; index += 1; bitctr += 1
-                    new_LIS.append([x, y, 0])
+                    # Keep as Type A, no change needed
+            
             else:  # Type B
                 max_d = func_MyDescendant(x, y, 1, m)
                 if max_d >= 2**n:
@@ -256,13 +252,22 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                         (2*x + 1, 2*y),
                         (2*x + 1, 2*y + 1)
                     ]
+                    # Add offspring to END of LIS 
                     for ox, oy in offspring:
                         if ox < H and oy < W:
-                            new_LIS.append([ox, oy, 0])
+                            LIS_list.append([ox, oy, 0])
+                    
+                    # Remove this Type B entry 
+                    LIS_list.pop(idx)
+                    idx -= 1  # Adjust index since we removed an element
                 else:
                     out[index] = 0; index += 1; bitctr += 1
-                    new_LIS.append([x, y, 1])
-        LIS = np.array(new_LIS, dtype=np.int32)
+                    # Keep as Type B for next bitplane, no change needed
+            
+            idx += 1
+        
+        # Convert back to numpy array for next bitplane
+        LIS = np.array(LIS_list, dtype=np.int32) if LIS_list else np.array([], dtype=np.int32).reshape(0, 3)
 
         # ---- REFINEMENT PASS ----
         if n < n_max:
@@ -270,8 +275,6 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                 x, y = LSP[i]
                 if index >= max_bits:
                     print("[Warning] Output buffer full.")
-                    print("refinement")
-                    print(index)
                     return out[:index]
                 val = int(abs(m[x, y]))
                 bit = (val >> n) & 1  # output n-th most significant bit
@@ -280,88 +283,4 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
         # Move to next bitplane
         n -= 1
 
-    print(f"Encoding complete. Bits used (after header): {bitctr}")
     return out[:index]
-
-if __name__ == "__main__":
-    # Example bitstream (you would provide your actual encoded data)
-    # Format: [image_size, n_max, level, bit1, bit2, ...]
-    bitstream = np.array([
-    8, 8, 1, 2,     # header: H, W, n_max, level
-    1, 1, 0, 0, 0,  # n=1, LIP: (0,0) significant + sign(1), others 0
-    0, 0, 0,        # n=1, LIS: all 0
-    0, 0, 0,        # n=0, LIP: all 0
-    0, 0, 0,        # n=0, LIS: all 0
-    1               # n=0, refinement: push midpoint up
-], dtype=np.int32)
-
-   
-
-    m = np.array([
-    [3.5, 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-    [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-], dtype=float)
-    print(m.shape)
-
-    result = func_MySPIHT_Enc(m, 1000,2)
-    print (result)
-    print(bitstream)
-
-    bitstream_16 = np.array([
-    # ---- header ----
-    16, 16, 2, 3,
-
-    # ===== n = 2 =====
-    # LIP over LL: order (0,0), (0,1), (1,0), (1,1)
-    # (0,0) sig=1 sign=1; (0,1)=0; (1,0)=0; (1,1) sig=1 sign=0
-    1, 1,  0,  0,  1, 0,
-
-    # LIS: three Type-A entries -> all 0
-    0, 0, 0,
-
-    # (no refinement at n=2 because values < 2^(2+1) = 8)
-
-    # ===== n = 1 =====
-    # LIP: remaining LL (0,1) sig=1 sign=1; (1,0)=0
-    1, 1,  0,
-
-    # LIS:
-    # For entry (0,1,0): set significant -> 1
-    #   children (0,2):1 sign=0, (0,3):0, (1,2):0, (1,3):0
-    # Next entries (1,0,0)=0, (1,1,0)=0
-    1,  1,0,  0,  0,  0,  0,  0,
-
-    # Refinement at n=1: refine ONLY those found earlier (from n=2): two bits
-    1, 1,
-
-    # ===== n = 0 =====
-    # LIP now has: (1,0), (0,3), (1,2), (1,3) -> keep all 0
-    0, 0, 0, 0,
-
-    # LIS now has three entries (likely (1,0,0), (1,1,0), (0,1,1)) -> all 0
-    0, 0, 0,
-
-    # Refinement at n=0: refine all current LSP entries in order:
-    # order: (0,0), (1,1), (0,1), (0,2)
-    # choose bits: 0, 1, 1, 0
-    0, 1, 1, 0
-], dtype=np.int32)
-    m16 = np.zeros((16, 16), dtype=float)
-    m16[0, 0] =  6.5
-    m16[1, 1] = -7.5
-    m16[0, 1] =  3.5
-    m16[0, 2] = -2.5
-    result = func_MySPIHT_Enc(m16, 1000,3)
-    print(bitstream_16)
-
-    # print("\nDecoded Image:")
-    # print(result)
-    # print("\nexpected Image:")
-    # print(expected_m16)
-
