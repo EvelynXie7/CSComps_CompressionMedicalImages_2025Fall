@@ -1,25 +1,81 @@
 """
-SPIHT_decoder.py 
+SPIHT Decoder 
+--------------------------------------------
 Author: Rui Shen
 Revised by: Evelyn Xie, Claude
-Python implementation of SPIHT decoder following original paper (Said & Pearlman, 1996)
+- Matches updated encoder logic
+- Uses correct offspring structure (LL→HL/LH/HH)
+- Supports multi-level DWT
+- Maintains Type A/B LIS structure and star pattern init
 """
 
 import numpy as np
 
+
+# ======================================================
+# ========== Band + Offspring Definitions ==============
+# ======================================================
+
+def get_band(x, y, bandsize):
+    """Identify which subband a coefficient belongs to."""
+    if x < bandsize and y < bandsize:
+        return "LL"
+    elif x < bandsize and y >= bandsize:
+        return "LH"
+    elif x >= bandsize and y < bandsize:
+        return "HL"
+    else:
+        return "HH"
+
+
+def get_offspring(x, y, band, level, bandsize, H, W):
+    """
+    Compute offspring coordinates according to spatial-orientation tree rules.
+    - LL roots → children in HL/LH/HH of next finer level
+    - LH/HL/HH → children in same-orientation subband below
+    """
+    if bandsize * 2 > H:  # no deeper level
+        return []
+
+    offspring = []
+    offset = bandsize
+
+    if band == "LL":
+        offspring += [(2*x + offset, 2*y)]          # HL
+        offspring += [(2*x,         2*y + offset)]  # LH
+        offspring += [(2*x + offset, 2*y + offset)] # HH
+    elif band == "HL":
+        offspring += [(2*x + offset, 2*y)]
+    elif band == "LH":
+        offspring += [(2*x, 2*y + offset)]
+    elif band == "HH":
+        offspring += [(2*x + offset, 2*y + offset)]
+
+    # Expand each offspring into 2×2 block
+    expanded = []
+    for ox, oy in offspring:
+        expanded.extend([
+            (ox, oy),
+            (ox, oy + 1),
+            (ox + 1, oy),
+            (ox + 1, oy + 1)
+        ])
+    return [(ox, oy) for ox, oy in expanded if ox < H and oy < W]
+
+
+# ======================================================
+# ======= Initialization of LIP / LIS / LSP ============
+# ======================================================
+
 def init_spiht_lists(m, level):
     """
-    Initialize SPIHT lists following original paper (Said & Pearlman, 1996)
-    
-    In the highest pyramid level (LL band), pixels are grouped in 2×2 blocks.
-    In each 2×2 block, one pixel (top-left of the block) has no descendants.
-    This is marked with a star (★) in Fig. 2 of the original paper.
+    Initialize LIP and LIS in star pattern matching encoder.
     """
     H, W = m.shape
-    bandsize = H // (2 ** level) 
+    bandsize = H // (2 ** level)
     if bandsize < 2:
-        raise ValueError(f"Invalid DWT level={level}: SPIHT requires LL ≥ 2×2.")
-    
+        raise ValueError(f"Invalid DWT level={level}")
+
     LIP, LIS = [], []
 
     # LIP: all LL coefficients
@@ -27,179 +83,113 @@ def init_spiht_lists(m, level):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: Exclude one pixel per 2×2 group (top-left of each group)
-    # Following original SPIHT paper: "in each group, one of them has no descendants"
-    # Pattern: exclude pixels where (i % 2 == 0) AND (j % 2 == 0)
-    for i in range(bandsize):
-        for j in range(bandsize):
-            # Check if this pixel is the top-left of a 2×2 group
-            if (i % 2 == 0) and (j % 2 == 0):
-                continue  # This pixel has no descendants (★ in Fig. 2)
-            LIS.append([i, j, 0])
-    
+    # LIS: star pattern (exclude top-left of each 2×2 LL block)
+    for i in range(0, bandsize, 2):
+        for j in range(0, bandsize, 2):
+            for (x, y) in [(i, j+1), (i+1, j), (i+1, j+1)]:
+                if x < bandsize and y < bandsize:
+                    LIS.append([x, y, 0])
+
     return LIP, LIS, []
 
 
+# ======================================================
+# ===================== Decoder ========================
+# ======================================================
+
 def func_MySPIHT_Dec(bitstream):
     """
-    SPIHT Decoder
-    
-    Parameters:
-    bitstream : numpy array
-        Bit stream containing encoded image data
-    
-    Returns:
-    m : numpy array
-        Reconstructed image in wavelet domain
+    SPIHT Decoder matching the updated encoder.
+    Reconstructs wavelet-domain coefficients from bitstream.
     """
     H = int(bitstream[0])
     W = int(bitstream[1])
     n_max = int(bitstream[2])
     level = int(bitstream[3])
     ctr = 4
-    m = np.zeros((H, W)) 
+    m = np.zeros((H, W))
+    bandsize = H // (2 ** level)
     LIP, LIS, LSP = init_spiht_lists(m, level)
-    
+
     n = n_max
-    
+
     while ctr < len(bitstream) and n >= 0:
         LSP_len_before = len(LSP)
-        
-        # ===== SORTING PASS: LIP =====
         new_LIP = []
-        for entry in LIP:
+
+        # ===== SORTING PASS: LIP =====
+        for (x, y) in LIP:
             if ctr >= len(bitstream):
                 return m
-            
-            x, y = entry
-            if bitstream[ctr] == 1:  # Significant
+            if bitstream[ctr] == 1:  # significant
                 ctr += 1
-                if ctr >= len(bitstream):
-                    return m
-                
-                # Get sign bit and initialize to midpoint
-                if bitstream[ctr] == 1:
-                    m[x, y] = 1.5 * (2**n)
-                else:
-                    m[x, y] = -1.5 * (2**n)
-                ctr += 1
-                
-                # Move to LSP
+                if ctr >= len(bitstream): return m
+                sign = bitstream[ctr]; ctr += 1
+                m[x, y] = (1.5 if sign == 1 else -1.5) * (2**n)
                 LSP.append([x, y])
-            else:  # Not significant
+            else:
                 ctr += 1
-                new_LIP.append([x, y])  # Keep in LIP
-        
+                new_LIP.append([x, y])
         LIP = new_LIP
-        
-        # ===== SORTING PASS: LIS (with dynamic growth for Type B offspring) =====
+
+        # ===== SORTING PASS: LIS =====
         LIS_list = list(LIS)
         idx = 0
-        
         while idx < len(LIS_list):
             if ctr >= len(bitstream):
                 return m
-            
-            entry = LIS_list[idx]
-            x, y, typ = entry
-            
-            # Calculate bandsize for offspring positions
-            bandsize = H // (2 ** level)
-            
+            x, y, typ = LIS_list[idx]
+            band = get_band(x, y, bandsize)
+            offspring = get_offspring(x, y, band, level, bandsize, H, W)
+
             if typ == 0:  # Type A
-                if bitstream[ctr] == 1:  # Significant
+                if bitstream[ctr] == 1:
                     ctr += 1
-                    
-                    # Process four offspring based on DWT layout
-                    offspring = [
-                        (x, y),
-                        (x, y + bandsize),
-                        (x + bandsize, y),
-                        (x + bandsize, y + bandsize)
-                    ]
-                    
                     for ox, oy in offspring:
-                        if ctr >= len(bitstream):
-                            return m
-                        if not (0 <= ox < H and 0 <= oy < W):
-                            continue
-                        
-                        if bitstream[ctr] == 1:  # Child is significant
+                        if ctr >= len(bitstream): return m
+                        if not (0 <= ox < H and 0 <= oy < W): continue
+                        if bitstream[ctr] == 1:
                             ctr += 1
-                            if ctr >= len(bitstream):
-                                return m
-                            
-                            # Get sign bit and initialize to midpoint
-                            if bitstream[ctr] == 1:
-                                m[ox, oy] = 1.5 * (2**n)
-                            else:
-                                m[ox, oy] = -1.5 * (2**n)
-                            ctr += 1
-                            
+                            if ctr >= len(bitstream): return m
+                            sign = bitstream[ctr]; ctr += 1
+                            m[ox, oy] = (1.5 if sign == 1 else -1.5) * (2**n)
                             LSP.append([ox, oy])
-                        else:  # Child not significant
+                        else:
                             ctr += 1
                             LIP.append([ox, oy])
-                    
-                    # Check if grandchildren exist
-                    next_bandsize = bandsize // 2
-                    if next_bandsize >= 1:
-                        LIS_list[idx] = [x, y, 1]  # Convert to Type B
+                    # check for grandchildren
+                    if (2*(2*x) < H) and (2*(2*y) < W):
+                        LIS_list[idx] = [x, y, 1]
                     else:
-                        # No grandchildren, remove from LIS
                         LIS_list.pop(idx)
-                        idx -= 1  # Adjust index
-                else:  # Not significant
-                    ctr += 1
-                    # Keep as Type A, no change needed
-            
+                        idx -= 1
+                else:
+                    ctr += 1  # not significant
+
             else:  # Type B
-                if bitstream[ctr] == 1:  # Significant
+                if bitstream[ctr] == 1:
                     ctr += 1
-                    
-                    # Add grandchildren (children of the LL child at x,y)
-                    next_bandsize = bandsize // 2
-                    offspring_coords = [
-                        (x, y),
-                        (x, y + next_bandsize),
-                        (x + next_bandsize, y),
-                        (x + next_bandsize, y + next_bandsize)
-                    ]
-                    
-                    for ox, oy in offspring_coords:
-                        # CRITICAL: Check bounds before adding to LIS
+                    for ox, oy in offspring:
                         if 0 <= ox < H and 0 <= oy < W:
                             LIS_list.append([ox, oy, 0])
-                    
-                    # Remove this Type B entry (fully processed)
                     LIS_list.pop(idx)
-                    idx -= 1  # Adjust index
-                else:  # Not significant
+                    idx -= 1
+                else:
                     ctr += 1
-                    # Keep as Type B for next bitplane
-            
             idx += 1
-        
+
         LIS = LIS_list
-        
+
         # ===== REFINEMENT PASS =====
         if n < n_max:
-            for i in range(LSP_len_before):    
+            for i in range(LSP_len_before):
                 if ctr >= len(bitstream):
                     return m
-                
                 x, y = LSP[i]
+                refine_bit = bitstream[ctr]; ctr += 1
                 val_sign = np.sign(m[x, y])
-                refine_bit = bitstream[ctr]
-                ctr += 1
-                
-                # Refine the value by ±2^(n-1)
-                if refine_bit == 1:
-                    m[x, y] = m[x, y] + (2**(n-1)) * val_sign
-                else:
-                    m[x, y] = m[x, y] - (2**(n-1)) * val_sign
-        
-        # Move to next bitplane
+                m[x, y] += (2**(n-1)) * val_sign if refine_bit == 1 else -(2**(n-1)) * val_sign
+
         n -= 1
-    
+
     return m
