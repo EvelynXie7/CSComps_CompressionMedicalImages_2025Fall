@@ -4,11 +4,16 @@ SPIHT Encoder
 Author: Evelyn Xie
 Revised by: Rui Shen, Claude
 - Handles arbitrary (non-square) image sizes 
+- Correct “star pattern” LIS initialization
+- Correct offspring logic for highest vs deeper levels
+- Retains Type A / Type B LIS sorting structure
+- Supports multi-level DWT pyramids
+- Adds safe write checks to prevent buffer overflow
+
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
 - Adds integer headers [H, W, n_max, level]
 - Fixed Type B processing to handle offspring in same bitplane
-
 """
 
 import sys, pathlib
@@ -16,12 +21,15 @@ ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import numpy as np
-from dwt import runDWT, decodeDWT
+from dwt import runDWT
 
 
-# Padding helpers
+# ======================================================
+# ================ Padding Utilities ===================
+# ======================================================
 
 def pad_to_multiple(img, k, mode="edge"):
+    """Pad an image so that H,W are multiples of k."""
     H, W = img.shape[:2]
     pad_h = (k - (H % k)) % k
     pad_w = (k - (W % k)) % k
@@ -30,257 +38,237 @@ def pad_to_multiple(img, k, mode="edge"):
 
 
 def unpad(img, pad_hw):
+    """Remove padding added by pad_to_multiple."""
     pad_h, pad_w = pad_hw
     H, W = img.shape[:2]
     return img[:H - pad_h, :W - pad_w]
 
 
-# Descendant search
-def func_MyDescendant(x, y, set_type, m):
-    """
-    Compute the maximum absolute value among the descendants of node (x, y)
-    for use in SPIHT significance testing.
+# ======================================================
+# ============ Safe Write Helper =======================
+# ======================================================
 
-    Parameters
-    ----------
-    x, y : int
-        Coordinates of the current node in the wavelet coefficient matrix.
-    set_type : int
-        0 = Type A (full descendant set D(x, y))
-        1 = Type B (exclude direct children, test only L(x, y))
-    m : np.ndarray
-        Wavelet coefficient matrix.
+def safe_write(out, index, val):
+    """Safely write one integer to output buffer, preventing overflow."""
+    if index >= len(out):
+        print(f"[Warning] Buffer overflow at index={index}/{len(out)}. Truncating output.")
+        return index, False
+    out[index] = val
+    return index + 1, True
 
-    Returns
-    -------
-    float
-        Maximum absolute coefficient value among the relevant descendant set.
+
+# ======================================================
+# ========== Band + Offspring Definitions ==============
+# ======================================================
+
+def get_band(x, y, bandsize):
+    """Identify which subband a coefficient belongs to."""
+    if x < bandsize and y < bandsize:
+        return "LL"
+    elif x < bandsize and y >= bandsize:
+        return "LH"
+    elif x >= bandsize and y < bandsize:
+        return "HL"
+    else:
+        return "HH"
+
+
+def get_offspring(x, y, band, level, bandsize, H, W):
     """
-    x, y = int(x), int(y)
+    Compute offspring coordinates according to spatial-orientation tree rules.
+    - LL roots → children in HL/LH/HH of next finer level
+    - LH/HL/HH → children in same-orientation subband below
+    """
+    if bandsize * 2 > H:
+        return []
+
+    offspring = []
+    offset = bandsize
+
+    if band == "LL":
+        offspring += [(2*x + offset, 2*y)]          # HL
+        offspring += [(2*x,         2*y + offset)]  # LH
+        offspring += [(2*x + offset, 2*y + offset)] # HH
+    elif band == "HL":
+        offspring += [(2*x + offset, 2*y)]
+    elif band == "LH":
+        offspring += [(2*x, 2*y + offset)]
+    elif band == "HH":
+        offspring += [(2*x + offset, 2*y + offset)]
+
+    expanded = []
+    for ox, oy in offspring:
+        expanded.extend([
+            (ox, oy),
+            (ox, oy + 1),
+            (ox + 1, oy),
+            (ox + 1, oy + 1)
+        ])
+    return [(ox, oy) for ox, oy in expanded if ox < H and oy < W]
+
+
+# ======================================================
+# ================= Descendant Search ==================
+# ======================================================
+
+def func_MyDescendant(x, y, set_type, m, level, bandsize):
+    """Compute max |coeff| among descendants of node (x,y)."""
     H, W = m.shape
+    band = get_band(x, y, bandsize)
     max_vals = []
-
-    # --- Direct offspring of (x, y) ---
-    offspring = [
-        (2*x, 2*y),
-        (2*x, 2*y + 1),
-        (2*x + 1, 2*y),
-        (2*x + 1, 2*y + 1)
-    ]
+    offspring = get_offspring(x, y, band, level, bandsize, H, W)
 
     if set_type == 0:
-        # ---------- Type A: include children + all deeper descendants ----------
         for ox, oy in offspring:
-            if ox < H and oy < W:
-                # Include the direct child value
-                max_vals.append(abs(m[ox, oy]))
-                # Recurse into that child's descendants
-                if (2*ox) < H and (2*oy) < W:
-                    desc_max = func_MyDescendant(ox, oy, 0, m)
-                    max_vals.append(desc_max)
-
+            max_vals.append(abs(m[ox, oy]))
+            if (2*ox) < H and (2*oy) < W:
+                desc_max = func_MyDescendant(ox, oy, 0, m, level - 1, bandsize // 2)
+                max_vals.append(desc_max)
     else:
-        # ---------- Type B: exclude direct children, test only deeper descendants ----------
         for ox, oy in offspring:
-            # For each child, check its own children (grandchildren of the original)
-            grandchildren = [
-                (2*ox, 2*oy),
-                (2*ox, 2*oy + 1),
-                (2*ox + 1, 2*oy),
-                (2*ox + 1, 2*oy + 1)
-            ]
-            for gx, gy in grandchildren:
-                if gx < H and gy < W:
-                    max_vals.append(abs(m[gx, gy]))
-                    # Recurse further if this grandchild has its own descendants
-                    if (2*gx) < H and (2*gy) < W:
-                        desc_max = func_MyDescendant(gx, gy, 0, m)
-                        max_vals.append(desc_max)
+            sub_offspring = get_offspring(
+                ox, oy, get_band(ox, oy, bandsize), level, bandsize, H, W
+            )
+            for gx, gy in sub_offspring:
+                max_vals.append(abs(m[gx, gy]))
+                if (2*gx) < H and (2*gy) < W:
+                    desc_max = func_MyDescendant(gx, gy, 0, m, level - 1, bandsize // 2)
+                    max_vals.append(desc_max)
 
     return max(max_vals) if max_vals else 0
 
 
-# Initialization of LIP / LIS / LSP
+# ======================================================
+# ======= Initialization of LIP / LIS / LSP ============
+# ======================================================
+
 def init_spiht_lists(m, level):
+    """Initialize LIP/LIS/LSP using the 'star pattern' rule."""
     H, W = m.shape
-    bandsize = H // (2 ** level) 
+    bandsize = H // (2 ** level)
     if bandsize < 2:
-        raise ValueError(f"Invalid DWT level={level}: SPIHT requires LL ≥ 2×2.")
-    
+        raise ValueError(f"Invalid DWT level={level}")
+
     LIP, LIS = [], []
 
-    # LIP: all LL coefficients
     for i in range(bandsize):
         for j in range(bandsize):
             LIP.append([i, j])
 
-    # LIS: Exclude coefficients without meaningful descendants
-    half = bandsize // 2
-    for i in range(bandsize):
-        for j in range(bandsize):
-            if i < half and j < half:
-                continue
-            LIS.append([i, j, 0])
-    
-    return np.array(LIP, dtype=np.int32), np.array(LIS, dtype=np.int32), []
+    for i in range(0, bandsize, 2):
+        for j in range(0, bandsize, 2):
+            for (x, y) in [(i, j+1), (i+1, j), (i+1, j+1)]:
+                if x < bandsize and y < bandsize:
+                    LIS.append([x, y, 0])
 
+    return np.array(LIP, np.int32), np.array(LIS, np.int32), []
+
+
+# ======================================================
+# ===================== Encoder ========================
+# ======================================================
 
 def func_MySPIHT_Enc(m, max_bits=4096, level=1):
-    """
-    SPIHT Encoder
-
-    Parameters
-    ----------
-    m : np.ndarray
-        Wavelet coefficient matrix (after DWT)
-    max_bits : int
-        Maximum number of bits in output buffer
-    level : int
-        DWT decomposition level
-
-    Returns
-    -------
-    np.ndarray
-        Encoded integer bitstream (first 4 entries are header)
-    """
-    out = 2 * np.ones(max_bits, dtype=np.int32)
+    out = 2 * np.ones(max_bits, np.int32)
     index = 0
-    bitctr = 0
 
+    H, W = m.shape
     max_val = np.abs(m).max()
     n_max = int(np.floor(np.log2(max_val))) if max_val > 0 else 0
     n = n_max
+    bandsize = H // (2 ** level)
 
-    H, W = m.shape
     LIP, LIS, LSP = init_spiht_lists(m, level)
-   
 
-    # ---------- HEADER ----------
-    out[0] = H
-    out[1] = W
-    out[2] = n_max
-    out[3] = level
-    index = 4
-    bitctr = 0
+    # ----- HEADER -----
+    for val in [H, W, n_max, level]:
+        index, ok = safe_write(out, index, val)
+        if not ok: return out[:index]
 
     # ==========================================================
-    # MAIN ENCODING LOOP
-    # ==========================================================
-    while index < max_bits and n >= 0:
-
-        # Record number of significant coefficients before this pass
+    while index < len(out) and n >= 0:
         LSP_len_before = len(LSP)
         LIP_remove = []
 
         # ---- SORTING PASS: LIP ----
-        for k in range(len(LIP)):
-            if index >= max_bits:
-                print("[Warning] Output buffer full.")
-                return out[:index]
-            x, y = LIP[k]
+        for k, (x, y) in enumerate(LIP):
             if abs(m[x, y]) >= 2**n:
-                out[index] = 1; index += 1; bitctr += 1
-                if index >= max_bits: return out[:index]
+                index, ok = safe_write(out, index, 1)
+                if not ok: return out[:index]
                 sign = 1 if m[x, y] >= 0 else 0
-                out[index] = sign; index += 1; bitctr += 1
+                index, ok = safe_write(out, index, sign)
+                if not ok: return out[:index]
                 LSP.append([x, y])
                 LIP_remove.append(k)
             else:
-                out[index] = 0; index += 1; bitctr += 1
+                index, ok = safe_write(out, index, 0)
+                if not ok: return out[:index]
 
         if LIP_remove:
             LIP = np.delete(LIP, LIP_remove, axis=0)
 
         # ---- SORTING PASS: LIS ----
-
-        
-        # Convert to list for dynamic growth during iteration
         LIS_list = LIS.tolist() if isinstance(LIS, np.ndarray) else list(LIS)
         idx = 0
-        
         while idx < len(LIS_list):
-            if index >= max_bits:
-                print("[Warning] Output buffer full.")
-                return out[:index]
-            
-            entry = LIS_list[idx]
-            x, y, typ = entry
-            
-            if typ == 0:  # Type A
-                max_d = func_MyDescendant(x, y, 0, m)
+            x, y, typ = LIS_list[idx]
+
+            if typ == 0:
+                max_d = func_MyDescendant(x, y, 0, m, level, bandsize)
                 if max_d >= 2**n:
-                    out[index] = 1; index += 1; bitctr += 1
-                    offspring = [
-                        (2*x, 2*y),
-                        (2*x, 2*y + 1),
-                        (2*x + 1, 2*y),
-                        (2*x + 1, 2*y + 1)
-                    ]
+                    index, ok = safe_write(out, index, 1)
+                    if not ok: return out[:index]
+                    offspring = get_offspring(
+                        x, y, get_band(x, y, bandsize), level, bandsize, H, W
+                    )
                     for ox, oy in offspring:
-                        if ox < H and oy < W:
-                            if abs(m[ox, oy]) >= 2**n:
-                                out[index] = 1; index += 1; bitctr += 1
-                                if index >= max_bits: return out[:index]
-                                sign = 1 if m[ox, oy] >= 0 else 0
-                                out[index] = sign; index += 1; bitctr += 1
-                                LSP.append([ox, oy])
-                            else:
-                                out[index] = 0; index += 1; bitctr += 1
-                                if len(LIP) > 0:
-                                    LIP = np.vstack([LIP, [ox, oy]])
-                                else:
-                                    LIP = np.array([[ox, oy]], dtype=np.int32)
-                    
-                    # Convert to Type B if grandchildren exist
+                        if abs(m[ox, oy]) >= 2**n:
+                            index, ok = safe_write(out, index, 1)
+                            if not ok: return out[:index]
+                            sign = 1 if m[ox, oy] >= 0 else 0
+                            index, ok = safe_write(out, index, sign)
+                            if not ok: return out[:index]
+                            LSP.append([ox, oy])
+                        else:
+                            index, ok = safe_write(out, index, 0)
+                            if not ok: return out[:index]
+                            LIP = np.vstack([LIP, [ox, oy]]) if len(LIP) else np.array([[ox, oy]], np.int32)
                     if (2*(2*x)) < H and (2*(2*y)) < W:
-                        LIS_list[idx] = [x, y, 1]  # Update in place to Type B
+                        LIS_list[idx] = [x, y, 1]
                     else:
-                        # No grandchildren, remove from LIS
                         LIS_list.pop(idx)
-                        idx -= 1  # Adjust index since we removed an element
+                        idx -= 1
                 else:
-                    out[index] = 0; index += 1; bitctr += 1
-                    # Keep as Type A, no change needed
-            
+                    index, ok = safe_write(out, index, 0)
+                    if not ok: return out[:index]
+
             else:  # Type B
-                max_d = func_MyDescendant(x, y, 1, m)
+                max_d = func_MyDescendant(x, y, 1, m, level, bandsize)
                 if max_d >= 2**n:
-                    out[index] = 1; index += 1; bitctr += 1
-                    offspring = [
-                        (2*x, 2*y),
-                        (2*x, 2*y + 1),
-                        (2*x + 1, 2*y),
-                        (2*x + 1, 2*y + 1)
-                    ]
-                    # Add offspring to END of LIS 
+                    index, ok = safe_write(out, index, 1)
+                    if not ok: return out[:index]
+                    offspring = get_offspring(
+                        x, y, get_band(x, y, bandsize), level, bandsize, H, W
+                    )
                     for ox, oy in offspring:
-                        if ox < H and oy < W:
-                            LIS_list.append([ox, oy, 0])
-                    
-                    # Remove this Type B entry 
+                        LIS_list.append([ox, oy, 0])
                     LIS_list.pop(idx)
-                    idx -= 1  # Adjust index since we removed an element
+                    idx -= 1
                 else:
-                    out[index] = 0; index += 1; bitctr += 1
-                    # Keep as Type B for next bitplane, no change needed
-            
+                    index, ok = safe_write(out, index, 0)
+                    if not ok: return out[:index]
             idx += 1
-        
-        # Convert back to numpy array for next bitplane
-        LIS = np.array(LIS_list, dtype=np.int32) if LIS_list else np.array([], dtype=np.int32).reshape(0, 3)
+
+        LIS = np.array(LIS_list, np.int32) if LIS_list else np.empty((0, 3), np.int32)
 
         # ---- REFINEMENT PASS ----
         if n < n_max:
             for i in range(LSP_len_before):
                 x, y = LSP[i]
-                if index >= max_bits:
-                    print("[Warning] Output buffer full.")
-                    return out[:index]
-                val = int(abs(m[x, y]))
-                bit = (val >> n) & 1  # output n-th most significant bit
-                out[index] = bit; index += 1; bitctr += 1
+                bit = (int(abs(m[x, y])) >> n) & 1
+                index, ok = safe_write(out, index, bit)
+                if not ok: return out[:index]
 
-        # Move to next bitplane
         n -= 1
 
     return out[:index]
