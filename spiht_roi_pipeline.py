@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT.parent))
 from dwt import *
 from SPIHT_encoder import *
 from SPIHT_decoder import func_MySPIHT_Dec
-from kits19.starter_code.visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX
+from kits_visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX
 
 
 # Helper Utilities 
@@ -61,7 +61,7 @@ def encode_roi(img, roi_mask, output_path, level=3, compression_ratio=2):
     k = 2 ** level
     img_roi, pad_hw = pad_to_multiple(img_roi, k)
     img_dwt = runDWT(img_roi, level)
-    original_bits = img.size * 8
+    original_bits = img.size * 32
     max_bits = int(original_bits / compression_ratio)
     roi_bitstream = func_MySPIHT_Enc(img_dwt, max_bits=max_bits, level=level)
     np.savez_compressed(output_path, bitstream=roi_bitstream, shape=img.shape,
@@ -75,7 +75,7 @@ def encode_bg(img, roi_mask, output_path, level=3, compression_ratio=20):
     k = 2 ** level
     img_bg, pad_hw = pad_to_multiple(img_bg, k)
     img_dwt = runDWT(img_bg, level)
-    original_bits = img.size * 8
+    original_bits = img.size * 32
     max_bits = int(original_bits / compression_ratio)
     bg_bitstream = func_MySPIHT_Enc(img_dwt, max_bits=max_bits, level=level)
     np.savez_compressed(output_path, bitstream=bg_bitstream, shape=img.shape,
@@ -164,13 +164,13 @@ def process_kits19_dataset(data_dir, compressed_dir, decompressed_dir,
 
 def process_brats_dataset(data_dir, compressed_dir, decompressed_dir,
                           max_cases=2, roi_label=[1, 2, 4], max_slices=5,
-                          roi_ratio=2, bg_ratio=20, level=2, modality="t1ce"):
-    """Dataset-level processing for BraTS2020."""
+                          roi_ratio=2, bg_ratio=10, level=2, modality="t1ce"):
+    """Dataset-level processing for BraTS2021."""
     os.makedirs(os.path.join(compressed_dir, "SPIHT"), exist_ok=True)
     os.makedirs(os.path.join(decompressed_dir, "SPIHT"), exist_ok=True)
 
     for i in range(1, max_cases + 1):
-        case_name = f"BraTS20_Training_{i:03d}"
+        case_name = f"BraTS2021_{i:05d}"
         case_dir = os.path.join(data_dir, case_name)
         if not os.path.exists(case_dir):
             continue
@@ -216,24 +216,23 @@ def process_brats_dataset(data_dir, compressed_dir, decompressed_dir,
 
 
 if __name__ == "__main__":
-    base_out = "./outputs"
+    base_out = "./outputs_SPIHT"
     kits_out = os.path.join(base_out, "outputs_kits")
     brats_out = os.path.join(base_out, "outputs_brats")
-
-    process_kits19_dataset(
-        data_dir="./kits19/data",
-        compressed_dir=os.path.join(kits_out, "compressed_data"),
-        decompressed_dir=os.path.join(kits_out, "decompressed_data"),
-        max_cases=2,
-        roi_label=2,
-        max_slices=3
-    )
-
     process_brats_dataset(
-        data_dir="./MICCAI_BraTS2020_TrainingData",
+        data_dir="./BraTS2021_Training_Data",
         compressed_dir=os.path.join(brats_out, "compressed_data"),
         decompressed_dir=os.path.join(brats_out, "decompressed_data"),
-        max_cases=2,
+        max_cases=100,
         roi_label=[1, 2, 4],
-        max_slices=3
+        max_slices=300
     )
+    process_kits19_dataset(
+        data_dir="./kits19-master/data",
+        compressed_dir=os.path.join(kits_out, "compressed_data"),
+        decompressed_dir=os.path.join(kits_out, "decompressed_data"),
+        max_cases=100,
+        roi_label=2,
+        max_slices=300
+    )
+

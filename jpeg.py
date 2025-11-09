@@ -27,6 +27,7 @@ def JPEG():
     QUALITY = 50
 
     for case in range(300):
+        print('Case:', case)
         original_case = loadCT(case)
 
         comp_filedir = getFilepath('compressed_data', 'JPEG', case)

@@ -4,3 +4,6 @@ tmp
 .DS_Store
 BraTS2021_Training_Data/
 kits19-master/
+outputs/
+outputs_SPIHT/
+outputs_SPIHT_first_test_wrongcode

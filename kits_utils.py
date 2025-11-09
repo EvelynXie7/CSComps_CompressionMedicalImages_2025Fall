@@ -29,7 +29,7 @@ def get_case_path(cid):
     case_id = get_full_case_id(cid)
 
     # Make sure that case_id exists under the data_path
-    case_path = data_path / case_id
+    case_path = data_path / 'data' / case_id
     if not case_path.exists():
         raise ValueError(
             "Case could not be found \"{}\"".format(case_path.name)

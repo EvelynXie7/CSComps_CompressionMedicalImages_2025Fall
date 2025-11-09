@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT.parent))
 from dwt import decodeDWT
 from SPIHT_encoder import unpad
 from SPIHT_decoder import func_MySPIHT_Dec
-from kits19.starter_code.visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX
+from kits_visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX
 
 
 # ============================================================================
@@ -149,7 +149,7 @@ def metrics_kits19_slice(original_slice, compressed_dir, slice_idx, roi_mask):
     roi_size = os.path.getsize(roi_npz)
     bg_size = os.path.getsize(bg_npz)
     meta_size = os.path.getsize(meta_npz)
-    combined_size = roi_size + bg_size + meta_size
+    combined_size = roi_size + bg_size #+ meta_size
     
     # Calculate image composition metrics
     total_pixels = original_slice.size
@@ -160,6 +160,8 @@ def metrics_kits19_slice(original_slice, compressed_dir, slice_idx, roi_mask):
     original_size = total_pixels * 4  # float32
     roi_original_size = roi_pixel_count * 4
     bg_original_size = (total_pixels - roi_pixel_count) * 4
+
+
     
     # Compression ratios
     cr_combined = original_size / combined_size
@@ -336,7 +338,7 @@ def metrics_kits19_dataset(data_dir, compressed_base_dir, output_file,
     
     compressed_spiht_dir = os.path.join(compressed_base_dir,"outputs_kits", "compressed_data","SPIHT")
     print (compressed_spiht_dir)
-    for i in range(170,171):
+    for i in range(0,max_cases+1):
         case_name = f"case_{i:05d}"
         case_dir = os.path.join(data_dir, case_name)
         print(case_dir)
@@ -414,6 +416,7 @@ def metrics_brats_slice(original_slice, compressed_dir, slice_idx, roi_mask):
     cr_roi = roi_original_size / roi_size if roi_size > 0 and roi_original_size > 0 else 0
     cr_bg = bg_original_size / bg_size if bg_size > 0 and bg_original_size > 0 else 0
     
+
     # Quality metrics
     overall_mse = getMSE(original_slice, rec_norm)
     overall_psnr = getPSNR(original_slice, rec_norm, max_val=255.0)
@@ -531,7 +534,7 @@ def metrics_brats_dataset(data_dir, compressed_base_dir, output_file,
     Calculate metrics for BraTS dataset
     """
     if max_cases is None:
-        max_cases = 369
+        max_cases = 500
     
     if os.path.exists(output_file):
         with open(output_file, 'r') as f:
@@ -542,7 +545,7 @@ def metrics_brats_dataset(data_dir, compressed_base_dir, output_file,
     compressed_spiht_dir = os.path.join(compressed_base_dir,"outputs_brats", "compressed_data","SPIHT")
     
     for i in range(1, max_cases + 1):
-        case_name = f"BraTS20_Training_{i:03d}"
+        case_name = f"BraTS2021_{i:05d}"
         case_dir = os.path.join(data_dir, case_name)
         compressed_case_dir = os.path.join(compressed_spiht_dir, case_name)
         
@@ -612,20 +615,19 @@ def calculate_averages(metrics_list):
 # ============================================================================
 
 if __name__ == "__main__":
-    
-    metrics_kits19_dataset(
-        data_dir="./kits19/data",
-        compressed_base_dir="./outputs_SPIHT",
-        output_file="./outputs_SPIHT/outputs_kits/spiht_metrics_kits.json",
-        roi_label=2,
-        max_cases=2
-    )
-    
     metrics_brats_dataset(
-        data_dir="./MICCAI_BraTS2020_TrainingData",
+        data_dir="./BraTS2021_Training_Data",
         compressed_base_dir="./outputs_SPIHT",
         output_file="./outputs_SPIHT/outputs_brats/spiht_metrics_brats.json",
         roi_label=[1, 2, 4],
-        max_cases=2,
+        max_cases=100,
         modality="t1ce"
     )
+    metrics_kits19_dataset(
+        data_dir="./kits19-master/data",
+        compressed_base_dir="./outputs_SPIHT",
+        output_file="./outputs_SPIHT/outputs_kits/metrics/spiht_metrics_kits.json",
+        roi_label=2,
+        max_cases=100
+    )
+    

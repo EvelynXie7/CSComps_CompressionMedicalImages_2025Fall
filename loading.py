@@ -19,7 +19,3 @@ def loadCT(case_num):
     vol_data = hu_to_grayscale(vol_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)[:, :, :, 0]
 
     return vol_data
-
-def loadMRI():
-    # Set up when have access to other computer to confirm there
-    pass
