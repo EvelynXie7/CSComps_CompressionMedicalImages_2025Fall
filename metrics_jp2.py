@@ -506,7 +506,7 @@ if __name__ == "__main__":
 )
 
     
-    metrics_kits19_dataset(data_dir="Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/kits19-master/data", 
+    metrics_kits19_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/kits19-master/data", 
                             output_dir="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits",
                            max_cases=1, roi_label=[2], max_slices=None,
                            metrics_file="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits/metrics_kits.json"
