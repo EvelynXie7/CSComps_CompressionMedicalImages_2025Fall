@@ -1,4 +1,4 @@
-from metrics import getMSE, getPSNR
+from metrics import getMSE, getPSNRjp2
 import os
 from pathlib import Path
 import glymur
@@ -349,17 +349,19 @@ roi_label=None, slice_range=None, max_slices=None, all_metrics=None):
         bg_original_size = bg_pixel_count * 2 
 
         # overall CR
-        cr_combined = original_size / (roi_size + bg_size)
+        cr_two_stream = original_size / (roi_size + bg_size)
 
         # Region-specific compression ratios
         cr_bg_only  = bg_original_size / bg_size if bg_size > 0 else 0
         cr_roi_only = roi_original_size / roi_size if roi_size > 0 and roi_original_size > 0 else 0
 
+        cr_combined= original_size/combined_size
+
 
         # Background metrics
         bg_mask = ~roi_mask
         bg_mse = getMSE(img_slice[bg_mask], bg_decompressed[bg_mask])
-        bg_psnr = getPSNR(img_slice[bg_mask], bg_decompressed[bg_mask])
+        bg_psnr = getPSNRjp2(img_slice[bg_mask], bg_decompressed[bg_mask])
         
 
         # Increment processed_count by 1
@@ -376,10 +378,11 @@ roi_label=None, slice_range=None, max_slices=None, all_metrics=None):
             "bg_original_bytes": int(bg_original_size),
             "roi_cr": float(cr_roi_only),
             "roi_original_bytes": int(roi_original_size),
-            "compression_ratio_combined": float(cr_combined),
+            "compression_ratio_two_stream": float(cr_two_stream),
             "bg_only_bytes": int(bg_size),
             "roi_only_bytes": int(roi_size),
-            "combined_bytes": int(combined_size)  # informational
+            "combined_bytes": int(combined_size),
+            "compression_ratio_combined": float(cr_combined)
         }
 
         all_metrics[case_name][modality].append(metrics_entry)
