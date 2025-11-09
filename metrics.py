@@ -25,6 +25,17 @@ def getPSNR(image1, image2):
     mse = getMSE(image1, image2)
     return 10 * math.log((255 ** 2) / mse, 10)
 
+def getPSNRjp2(image1, image2):
+    '''
+    Inputs: 
+        - image1: the first image
+        - image2: the second image
+    Outputs:
+        - psnr (float): the Peak Signal to Noise Ratio between the two images
+    '''
+    mse = getMSE(image1, image2)
+    return 10 * math.log((65535 ** 2) / mse, 10)
+
 def getCR(compressed_image, orig_image):
     '''
     Inputs: 
