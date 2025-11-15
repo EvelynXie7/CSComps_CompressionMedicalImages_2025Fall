@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple
 
-def calculate_statistics(data: Dict) -> Dict[str, Dict[str,float]]:
+def calculate_statistics(data: Dict, max_cases: int = None) -> Dict[str, Dict[str,float]]:
     """
     Caculate mean and standard deviation for compression ratio, bg_MSE, and bg_PSNR in brats
     """
@@ -14,7 +14,9 @@ def calculate_statistics(data: Dict) -> Dict[str, Dict[str,float]]:
     }
 
     # Iterate through brats cases, and modalities
-    for case_name, case_data in data.items():
+    for case_idx, (case_name, case_data) in enumerate(data.items()):
+        if max_cases is not None and case_idx >=max_cases:
+            break
         for modality, slices in case_data.items():
             for slice_data in slices:
                 metrics['compression_ratio_two_stream'].append(slice_data['compression_ratio_two_stream'])
@@ -27,12 +29,18 @@ def calculate_statistics(data: Dict) -> Dict[str, Dict[str,float]]:
         results[metric_name]={
             "mean": np.mean(values),
             "std": np.std(values),
+            "min": np.min(values),
+            "q1": np.percentile(values,25), 
+            "median": np.median(values),
+            "q3": np.percentile(values,75),
+            "max": np.max(values),
+            "iqr": np.percentile(values,75) - np.percentile(values,25),            
             "count": len(values)
         }
     
     return results
 
-def extract_cr_vs_black_space(data: Dict) -> Tuple[List[float], List[float]]:
+def extract_cr_vs_black_space(data: Dict, max_cases: int = None) -> Tuple[List[float], List[float]]:
     """
     Get compression ratio and black space for scatter plot
     """
@@ -54,7 +62,9 @@ def extract_cr_vs_roi_space(data: Dict) -> Tuple[List[float], List[float]]:
     roi_percentages = []
     compression_ratios = []
     
-    for case_name, case_data in data.items():
+    for case_idx, (case_name, case_data) in enumerate(data.items()):
+        if max_cases is not None and case_idx >=max_cases:
+            break
         for modality, slices in case_data.items():
             for slice_data in slices:
                 roi_percentages.append(slice_data['roi_percentage'])
@@ -117,7 +127,21 @@ def print_statistics(stats: Dict) -> None:
         print(f"  Mean: {values['mean']:.4f}")
         print(f"  Std Dev: {values['std']:.4f}")
         print(f"  Count: {values['count']}")
-
+        print(f"  Min: {values['min']:.4f}")
+        print(f"  q1: {values['q1']:.4f}")
+        print(f"  Median: {values['median']:.4f}")
+        print(f"  q3: {values['q3']:.4f}")
+        print(f"  Maximum: {values['max']:.4f}") 
+        print(f"  IQR: {values['iqr']:.4f}")         
+        print(f"  Count: {values['count']}")
+        """
+            "min": np.min(values),
+            "q1": np.percentile(values,25), 
+            "median": np.median(values),
+            "q3": np.percentile(values,75),
+            "max": np.max(values),
+            "iqr": np.percentile(values,75) - np.percentile(values,25),
+        """
 
 if __name__ == "__main__":
     # Load JSON data
