@@ -47,7 +47,9 @@ def extract_cr_vs_black_space(data: Dict, max_cases: int = None) -> Tuple[List[f
     black_percentages = []
     compression_ratios = []
     
-    for case_name, case_data in data.items():
+    for case_idx, (case_name, case_data) in enumerate(data.items()):
+        if max_cases is not None and case_idx >=max_cases:
+            break
         for modality, slices in case_data.items():
             for slice_data in slices:
                 black_percentages.append(slice_data['black_percentage'])
