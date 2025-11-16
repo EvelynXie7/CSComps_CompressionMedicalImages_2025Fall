@@ -57,7 +57,7 @@ def extract_cr_vs_black_space(data: Dict, max_cases: int = None) -> Tuple[List[f
     
     return black_percentages, compression_ratios
 
-def extract_cr_vs_roi_space(data: Dict) -> Tuple[List[float], List[float]]:
+def extract_cr_vs_roi_space(data: Dict, max_cases: int=None) -> Tuple[List[float], List[float]]:
     """
     Get compression ratio and black space for scatter plot
     """
@@ -147,27 +147,27 @@ def print_statistics(stats: Dict) -> None:
 
 if __name__ == "__main__":
     # Load JSON data
-    with open("/Users/justinvaughn/data/metrics/metrics_brats.json", 'r') as brats:
+    with open("/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats/metrics_brats.json", 'r') as brats:
         data_brats = json.load(brats)
 
-    with open("/Users/justinvaughn/data/metrics/metrics_kits.json", 'r') as kits:
+    with open("/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits/metrics_kits.json", 'r') as kits:
         data_kits = json.load(kits)
     
-    # print("brats:")
-    # # Calculate and print statistics
-    # stats_brats = calculate_statistics(data_brats)
-    # print_statistics(stats_brats)
-    # print("kits:")
-    # stats_kits = calculate_statistics(data_kits)
-    # print_statistics(stats_kits)
+    print("brats:")
+    # Calculate and print statistics
+    stats_brats = calculate_statistics(data_brats, max_cases=None)
+    print_statistics(stats_brats)
+    print("kits:")
+    stats_kits = calculate_statistics(data_kits, max_cases=None)
+    print_statistics(stats_kits)
 
-    # # Create the graphs
-    # black_pct_brats, comp_ratios_brats = extract_cr_vs_black_space(data_brats)
-    # black_pct_kits, comp_ratios_kits = extract_cr_vs_black_space(data_kits)
-    # plot_cr_vs_black_space(black_pct_brats, comp_ratios_brats, save_path='cr_vs_black_space_brats.png', dataset= "Brats")
+    # Create the graphs
+    black_pct_brats, comp_ratios_brats = extract_cr_vs_black_space(data_brats, max_cases=None)
+    # black_pct_kits, comp_ratios_kits = extract_cr_vs_black_space(data_kits, max_cases=None)
+    plot_cr_vs_black_space(black_pct_brats, comp_ratios_brats, save_path='cr_vs_black_space_brats.png', dataset= "Brats")
     # plot_cr_vs_black_space(black_pct_kits, comp_ratios_kits, save_path='cr_vs_black_space_kits.png', dataset="Kits")
 
     roi_pct_brats, comp_ratios_brats_roi =extract_cr_vs_roi_space(data_brats)
-    roi_pct_kits, comp_ratios_kits_roi = extract_cr_vs_roi_space(data_kits)
+    # roi_pct_kits, comp_ratios_kits_roi = extract_cr_vs_roi_space(data_kits)
     plot_cr_vs_roi_space(roi_pct_brats, comp_ratios_brats_roi, save_path='cr_vs_roi_space_brats.png', dataset= "Brats")
-    plot_cr_vs_roi_space(roi_pct_kits, comp_ratios_kits_roi, save_path='cr_vs_roi_space_kits.png', dataset="Kits")
+    # plot_cr_vs_roi_space(roi_pct_kits, comp_ratios_kits_roi, save_path='cr_vs_roi_space_kits.png', dataset="Kits")

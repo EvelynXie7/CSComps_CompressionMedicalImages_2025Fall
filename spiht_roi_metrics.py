@@ -615,14 +615,14 @@ def calculate_averages(metrics_list):
 # ============================================================================
 
 if __name__ == "__main__":
-    metrics_brats_dataset(
-        data_dir="./BraTS2021_Training_Data",
-        compressed_base_dir="./outputs_SPIHT",
-        output_file="./outputs_SPIHT/outputs_brats/spiht_metrics_brats.json",
-        roi_label=[1, 2, 4],
-        max_cases=100,
-        modality="t1ce"
-    )
+    # metrics_brats_dataset(
+    #     data_dir="./BraTS2021_Training_Data",
+    #     compressed_base_dir="./outputs_SPIHT",
+    #     output_file="./outputs_SPIHT/outputs_brats/spiht_metrics_brats.json",
+    #     roi_label=[1, 2, 4],
+    #     max_cases=100,
+    #     modality="t1ce"
+    # )
     metrics_kits19_dataset(
         data_dir="./kits19-master/data",
         compressed_base_dir="./outputs_SPIHT",

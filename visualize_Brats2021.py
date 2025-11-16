@@ -126,10 +126,10 @@ def save_single_slice(slice_data, output_path, cmap='gray'):
 # Example usage
 if __name__ == "__main__":
     # Set your dataset path here
-    dataset_path = "/path/to/BraTS2021_Training_Data"
+    dataset_path = "./BraTS2021_Training_Data"
     
     # Example: Load first case
-    case_folder = "BraTS2021_00000"
+    case_folder = "BraTS2021_00090"
     case_path = os.path.join(dataset_path, case_folder)
     
     if os.path.exists(case_path):
@@ -137,16 +137,16 @@ if __name__ == "__main__":
         modalities = load_brats_case(case_path)
         
         # Visualize a slice from the middle of the brain (slice 77 is typical)
-        visualize_all_modalities(modalities, slice_idx=77, axis=2, 
+        visualize_all_modalities(modalities, slice_idx=36, axis=2, 
                                 save_path='brats_slice_visualization.png')
         
         # Save individual slices
         if 't1' in modalities:
-            t1_slice = extract_slice(modalities['t1'], slice_idx=77, axis=2)
+            t1_slice = extract_slice(modalities['t1'], slice_idx=36, axis=2)
             save_single_slice(t1_slice, 't1_slice_77.png')
         
         if 't1ce' in modalities:
-            t1ce_slice = extract_slice(modalities['t1ce'], slice_idx=77, axis=2)
+            t1ce_slice = extract_slice(modalities['t1ce'], slice_idx=36, axis=2)
             save_single_slice(t1ce_slice, 't1ce_slice_77.png')
     else:
         print(f"Case path not found: {case_path}")

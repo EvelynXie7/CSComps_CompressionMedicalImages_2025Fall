@@ -503,17 +503,17 @@ def metrics_kits19_dataset(data_dir, output_dir, roi_label=2, max_slices=None, m
 if __name__ == "__main__":
     metrics_brats_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/BraTS2021_Training_Data", 
                           output_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats",
-                            max_cases=4, roi_label=[1, 2, 4], max_slices=None,                           
+                            max_cases=100, roi_label=[1, 2, 4], max_slices=None,                           
                    metrics_file="/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats/metrics_brats.json"
 
 )
 
     
-    metrics_kits19_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/kits19-master/data", 
-                            output_dir="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits",
-                           max_cases=1, roi_label=[2], max_slices=None,
-                           metrics_file="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits/metrics_kits.json"
-                    )
+    # metrics_kits19_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/kits19-master/data", 
+    #                         output_dir="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits",
+    #                        max_cases=100, roi_label=[2], max_slices=None,
+    #                        metrics_file="/Users/mic/Desktop/MIC_Comps/outputs/outputs_kits/metrics_kits.json"
+    #                 )
     
         # process_brats_dataset(data_dir="/Users/mic/Desktop/MIC_Comps/CSComps_CompressionMedicalImages_2025Fall/BraTS2021_Training_Data", 
     #                       output_dir= "/Users/mic/Desktop/MIC_Comps/outputs/outputs_brats",
