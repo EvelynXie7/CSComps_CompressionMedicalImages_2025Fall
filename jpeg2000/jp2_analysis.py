@@ -3,9 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple
 
+'''
+Author: Justin Vaughn
+
+https://numpy.org/doc/
+Matplotlib 3.10.7 documentation#. Matplotlib documentation - Matplotlib 3.10.7 documentation. (n.d.). https://matplotlib.org/stable/index.html
+'''
+
 def calculate_statistics(data: Dict, max_cases: int = None) -> Dict[str, Dict[str,float]]:
     """
-    Caculate mean and standard deviation for compression ratio, bg_MSE, and bg_PSNR in brats
+    Caculate mean, standard deviation, and box and whisker components for compression ratio, bg_MSE, and bg_PSNR in brats
     """
     metrics={
         "compression_ratio_two_stream": [],

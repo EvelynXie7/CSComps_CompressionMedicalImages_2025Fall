@@ -11,13 +11,16 @@ Author: Justin Vaughn
 Medical Image ROI Compression. Higher quality encoding for regions of interest and more compression for the background.
 
 Based on:
-Glymur library docs for JPEG 2000 (https://glymur.readthedocs.io/en/latest/)
-NiBabel for NIfTI format (https://nipy.org/nibabel/)
+Glymur library docs for JPEG 2000 (https://glymur.readthedocs.io/en/latest/):
+Welcome to glymur’s documentation!. Welcome to glymur’s documentation! - glymur 0.14.4 documentation. (n.d.). https://glymur.readthedocs.io/en/latest/
+NiBabel for NIfTI format (https://nipy.org/nibabel/):
+Nibabel. Neuroimaging in Python - NiBabel 5.4.0.dev1+g3b1c7b37 documentation. (n.d.). https://nipy.org/nibabel/
 NumPy array operations and mathematical functions:
+https://numpy.org/doc/
+NumPy documentation. NumPy. (n.d.). https://numpy.org/doc/
 
-  
 
-Works with KiTS19 (kidney tumors) and BraTS2020 (brain tumors) datasets.
+Works with KiTS19 (kidney tumors) and BraTS2021 (brain tumors) datasets.
 """
 
 def create_roi_mask(mask_data, roi_label):

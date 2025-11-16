@@ -330,6 +330,10 @@ def zero_pad(block_code, byte_array, length) -> tuple:
 
     return byte_array,length
 
+# =============================================================================
+# File Format Functions
+# =============================================================================
+
 def put_header(width:int, height:int, quant, fileout):
     # void put_header(
     #   int width,        /* number of columns in image */
