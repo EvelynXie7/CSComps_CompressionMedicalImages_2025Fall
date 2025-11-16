@@ -1,6 +1,6 @@
 """
 BraTS 2021 Dataset Image Slice Extraction and Visualization
-This script demonstrates how to load and visualize slice images from the BraTS 2021 dataset.
+Author: Rui , Claude
 """
 
 import os
