@@ -3,64 +3,142 @@ SPIHT Decoder
 --------------------------------------------
 Author: Rui Shen
 Revised by: Evelyn Xie, Claude
-- Matches updated encoder logic
-- Uses correct offspring structure (LL→HL/LH/HH)
+- Matches updated encoder logic with correct spatial-orientation tree
+- Uses correct offspring structure for deepest LL vs HL/LH/HH bands
 - Supports multi-level DWT
 - Maintains Type A/B LIS structure and star pattern init
+- Clear helper functions: is_in_deepest_LL, is_LL_root
 """
 
 import numpy as np
 
 
 # ======================================================
-# ========== Band + Offspring Definitions ==============
+# ========== Spatial-Orientation Tree Helpers ==========
 # ======================================================
 
-def get_band(x, y, bandsize):
-    """Identify which subband a coefficient belongs to."""
-    if x < bandsize and y < bandsize:
-        return "LL"
-    elif x < bandsize and y >= bandsize:
-        return "LH"
-    elif x >= bandsize and y < bandsize:
-        return "HL"
-    else:
-        return "HH"
+def is_in_deepest_LL(x, y, bandsize):
+    """Check if coefficient is in the deepest LL region."""
+    return x < bandsize and y < bandsize
 
 
-def get_offspring(x, y, band, level, bandsize, H, W):
+def is_LL_root(x, y, bandsize):
+    """
+    Check if this is a 2×2 block root in deepest LL (top-left of each 2×2).
+    These have NO offspring - they're leaves in the spatial-orientation tree.
+    """
+    return (x < bandsize and y < bandsize and 
+            x % 2 == 0 and y % 2 == 0)
+
+def get_offspring(x, y, level, bandsize, H, W):
     """
     Compute offspring coordinates according to spatial-orientation tree rules.
-    - LL roots → children in HL/LH/HH of next finer level
-    - LH/HL/HH → children in same-orientation subband below
+    
+    Three cases:
+    1. LL root (top-left of 2×2 in deepest LL): NO offspring
+    2. Non-root LL coefficient (other 3 in each 2×2): offspring in HL/LH/HH at SAME level
+    3. HL/LH/HH coefficients: offspring in same orientation at NEXT FINER level
+    
+    Parameters:
+    - x, y: current coefficient coordinates in the full DWT array
+    - level: DWT decomposition level
+    - bandsize: size of deepest LL band (H // 2^level)
+    - H, W: dimensions of the full DWT coefficient array
     """
-    if bandsize * 2 > H:  # no deeper level
+    # Case 1: LL roots have no offspring
+    if is_LL_root(x, y, bandsize):
         return []
-
-    offspring = []
-    offset = bandsize
-
-    if band == "LL":
-        offspring += [(2*x + offset, 2*y)]          # HL
-        offspring += [(2*x,         2*y + offset)]  # LH
-        offspring += [(2*x + offset, 2*y + offset)] # HH
-    elif band == "HL":
-        offspring += [(2*x + offset, 2*y)]
+    
+    # Case 2: Non-root LL coefficients → offspring in HL/LH/HH at same level
+    if is_in_deepest_LL(x, y, bandsize):
+        block_x, block_y = x // 2, y // 2
+        in_block_x, in_block_y = x % 2, y % 2
+        
+        offspring = []
+        offset = bandsize
+        
+        # Map position in 2×2 block to corresponding high-freq band
+        if in_block_x == 0 and in_block_y == 1:  # (0,1) → LH
+            base_x, base_y = 2*block_x, 2*block_y + offset
+        elif in_block_x == 1 and in_block_y == 0:  # (1,0) → HL
+            base_x, base_y = 2*block_x + offset, 2*block_y
+        elif in_block_x == 1 and in_block_y == 1:  # (1,1) → HH
+            base_x, base_y = 2*block_x + offset, 2*block_y + offset
+        else:
+            return []  # (0,0) should have been caught by is_LL_root
+        
+        # 4 offspring in a 2×2 block
+        offspring = [
+            (base_x, base_y), (base_x, base_y + 1),
+            (base_x + 1, base_y), (base_x + 1, base_y + 1)
+        ]
+        
+        return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
+    
+    # Case 3: HL/LH/HH coefficients → offspring at next finer level
+    # First, determine which level this coefficient is actually at
+    # by checking which band region it falls into
+    
+    # Determine current level by finding which band region contains (x,y)
+    current_level_bandsize = bandsize
+    parent_level = level  # Start at deepest level
+    
+    # Move up levels until we find which band contains this coordinate
+    while current_level_bandsize * 2 <= H:
+        if (x < current_level_bandsize * 2 and y < current_level_bandsize * 2):
+            # This coordinate is within the current level's extent
+            break
+        current_level_bandsize *= 2
+        parent_level -= 1
+    
+    # Identify which high-freq band we're in at this level
+    if x < current_level_bandsize and y >= current_level_bandsize:
+        band = "LH"
+    elif x >= current_level_bandsize and y < current_level_bandsize:
+        band = "HL"
+    elif x >= current_level_bandsize and y >= current_level_bandsize:
+        band = "HH"
+    else:
+        return []
+    
+    # Check if offspring level exists
+    offspring_bandsize = current_level_bandsize * 2
+    if offspring_bandsize > H:
+        return []
+    
+    # Convert to local coordinates within the current band
+    if band == "HL":
+        local_x = x - current_level_bandsize
+        local_y = y
     elif band == "LH":
-        offspring += [(2*x, 2*y + offset)]
+        local_x = x
+        local_y = y - current_level_bandsize
     elif band == "HH":
-        offspring += [(2*x + offset, 2*y + offset)]
-
-    # Expand each offspring into 2×2 block
-    expanded = []
-    for ox, oy in offspring:
-        expanded.extend([
-            (ox, oy),
-            (ox, oy + 1),
-            (ox + 1, oy),
-            (ox + 1, oy + 1)
-        ])
-    return [(ox, oy) for ox, oy in expanded if ox < H and oy < W]
+        local_x = x - current_level_bandsize
+        local_y = y - current_level_bandsize
+    
+    # Offspring are at 2× local position in the same orientation band at next level
+    offspring_local_x = 2 * local_x
+    offspring_local_y = 2 * local_y
+    
+    # Convert back to global coordinates
+    if band == "HL":
+        base_x = offspring_local_x + offspring_bandsize
+        base_y = offspring_local_y
+    elif band == "LH":
+        base_x = offspring_local_x
+        base_y = offspring_local_y + offspring_bandsize
+    elif band == "HH":
+        base_x = offspring_local_x + offspring_bandsize
+        base_y = offspring_local_y + offspring_bandsize
+    
+    # Expand to 4 children in a 2×2 block
+    offspring = [
+        (base_x, base_y), (base_x, base_y + 1),
+        (base_x + 1, base_y), (base_x + 1, base_y + 1)
+    ]
+    
+    return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
 
 
 # ======================================================
@@ -70,6 +148,11 @@ def get_offspring(x, y, band, level, bandsize, H, W):
 def init_spiht_lists(m, level):
     """
     Initialize LIP and LIS in star pattern matching encoder.
+    
+    LIP: all coefficients in deepest LL band
+    LIS: non-root coefficients in deepest LL (the 3 non-top-left in each 2×2 block)
+         These are Type A entries that have offspring in HL/LH/HH
+    LSP: empty initially
     """
     H, W = m.shape
     bandsize = H // (2 ** level)
@@ -88,7 +171,7 @@ def init_spiht_lists(m, level):
         for j in range(0, bandsize, 2):
             for (x, y) in [(i, j+1), (i+1, j), (i+1, j+1)]:
                 if x < bandsize and y < bandsize:
-                    LIS.append([x, y, 0])
+                    LIS.append([x, y, 0])  # Type A
 
     return LIP, LIS, []
 
@@ -139,43 +222,64 @@ def func_MySPIHT_Dec(bitstream):
             if ctr >= len(bitstream):
                 return m
             x, y, typ = LIS_list[idx]
-            band = get_band(x, y, bandsize)
-            offspring = get_offspring(x, y, band, level, bandsize, H, W)
 
-            if typ == 0:  # Type A
-                if bitstream[ctr] == 1:
+            if typ == 0:  # Type A: process direct offspring
+                if bitstream[ctr] == 1:  # offspring are significant
                     ctr += 1
+                    offspring = get_offspring(x, y, level, bandsize, H, W)
+                    
                     for ox, oy in offspring:
                         if ctr >= len(bitstream): return m
                         if not (0 <= ox < H and 0 <= oy < W): continue
-                        if bitstream[ctr] == 1:
+                        
+                        if bitstream[ctr] == 1:  # this offspring is significant
                             ctr += 1
                             if ctr >= len(bitstream): return m
                             sign = bitstream[ctr]; ctr += 1
                             m[ox, oy] = (1.5 if sign == 1 else -1.5) * (2**n)
                             LSP.append([ox, oy])
-                        else:
+                        else:  # this offspring is not significant
                             ctr += 1
                             LIP.append([ox, oy])
-                    # check for grandchildren
-                    if (2*(2*x) < H) and (2*(2*y) < W):
-                        LIS_list[idx] = [x, y, 1]
+                    
+                    # Check if this node has grandchildren to become Type B
+                    has_grandchildren = False
+                    if is_in_deepest_LL(x, y, bandsize):
+                        # Offspring are in HL/LH/HH at same level
+                        # They have grandchildren at next finer level
+                        offspring_bandsize = bandsize * 2
+                        if offspring_bandsize <= H and level > 1:
+                            has_grandchildren = True
+                    else:
+                        # Offspring are at next finer level
+                        # They have grandchildren at two levels finer
+                        offspring_bandsize = bandsize * 2
+                        if offspring_bandsize * 2 <= H and level > 1:
+                            has_grandchildren = True
+                    
+                    if has_grandchildren:
+                        LIS_list[idx] = [x, y, 1]  # Convert to Type B
                     else:
                         LIS_list.pop(idx)
                         idx -= 1
                 else:
-                    ctr += 1  # not significant
+                    ctr += 1  # offspring not significant
 
-            else:  # Type B
-                if bitstream[ctr] == 1:
+            else:  # Type B: process grandchildren (offspring of offspring)
+                if bitstream[ctr] == 1:  # grandchildren are significant
                     ctr += 1
+                    offspring = get_offspring(x, y, level, bandsize, H, W)
+                    
+                    # Add each offspring as a new Type A entry
                     for ox, oy in offspring:
                         if 0 <= ox < H and 0 <= oy < W:
                             LIS_list.append([ox, oy, 0])
+                    
                     LIS_list.pop(idx)
                     idx -= 1
                 else:
-                    ctr += 1
+                    ctr += 1  # grandchildren not significant
+            
             idx += 1
 
         LIS = LIS_list
