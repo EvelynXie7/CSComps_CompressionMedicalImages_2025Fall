@@ -10,12 +10,12 @@ Revised by: Rui Shen, Claude
 - Supports multi-level DWT pyramids
 - Adds safe write checks to prevent buffer overflow
 - Clearer naming: is_in_deepest_LL, is_LL_root
+- Fixed: bandsize parameter is ALWAYS deepest LL bandsize, never changes
 
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
 - Adds integer headers [H, W, n_max, level]
 - Fixed Type B processing to handle offspring in same bitplane
-- Fixed bandsize progression in descendant search (bandsize * 2)
 """
 
 import sys, pathlib
@@ -76,20 +76,10 @@ def is_LL_root(x, y, bandsize):
     return (x < bandsize and y < bandsize and 
             x % 2 == 0 and y % 2 == 0)
 
+
 def get_offspring(x, y, level, bandsize, H, W):
     """
-    Compute offspring coordinates according to spatial-orientation tree rules.
-    
-    Three cases:
-    1. LL root (top-left of 2×2 in deepest LL): NO offspring
-    2. Non-root LL coefficient (other 3 in each 2×2): offspring in HL/LH/HH at SAME level
-    3. HL/LH/HH coefficients: offspring in same orientation at NEXT FINER level
-    
-    Parameters:
-    - x, y: current coefficient coordinates in the full DWT array
-    - level: DWT decomposition level
-    - bandsize: size of deepest LL band (H // 2^level)
-    - H, W: dimensions of the full DWT coefficient array
+    Simple rule: offspring are at (2*x, 2*y) with 4-child expansion
     """
     # Case 1: LL roots have no offspring
     if is_LL_root(x, y, bandsize):
@@ -100,10 +90,8 @@ def get_offspring(x, y, level, bandsize, H, W):
         block_x, block_y = x // 2, y // 2
         in_block_x, in_block_y = x % 2, y % 2
         
-        offspring = []
         offset = bandsize
         
-        # Map position in 2×2 block to corresponding high-freq band
         if in_block_x == 0 and in_block_y == 1:  # (0,1) → LH
             base_x, base_y = 2*block_x, 2*block_y + offset
         elif in_block_x == 1 and in_block_y == 0:  # (1,0) → HL
@@ -111,9 +99,8 @@ def get_offspring(x, y, level, bandsize, H, W):
         elif in_block_x == 1 and in_block_y == 1:  # (1,1) → HH
             base_x, base_y = 2*block_x + offset, 2*block_y + offset
         else:
-            return []  # (0,0) should have been caught by is_LL_root
+            return []
         
-        # 4 offspring in a 2×2 block
         offspring = [
             (base_x, base_y), (base_x, base_y + 1),
             (base_x + 1, base_y), (base_x + 1, base_y + 1)
@@ -121,70 +108,20 @@ def get_offspring(x, y, level, bandsize, H, W):
         
         return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
     
-    # Case 3: HL/LH/HH coefficients → offspring at next finer level
-    # First, determine which level this coefficient is actually at
-    # by checking which band region it falls into
+    # Case 3: HL/LH/HH coefficients → just double the coordinates!
+    base_x, base_y = 2 * x, 2 * y
     
-    # Determine current level by finding which band region contains (x,y)
-    current_level_bandsize = bandsize
-    parent_level = level  # Start at deepest level
-    
-    # Move up levels until we find which band contains this coordinate
-    while current_level_bandsize * 2 <= H:
-        if (x < current_level_bandsize * 2 and y < current_level_bandsize * 2):
-            # This coordinate is within the current level's extent
-            break
-        current_level_bandsize *= 2
-        parent_level -= 1
-    
-    # Identify which high-freq band we're in at this level
-    if x < current_level_bandsize and y >= current_level_bandsize:
-        band = "LH"
-    elif x >= current_level_bandsize and y < current_level_bandsize:
-        band = "HL"
-    elif x >= current_level_bandsize and y >= current_level_bandsize:
-        band = "HH"
-    else:
+    # Check if offspring would be out of bounds
+    if base_x >= H or base_y >= W:
         return []
     
-    # Check if offspring level exists
-    offspring_bandsize = current_level_bandsize * 2
-    if offspring_bandsize > H:
-        return []
-    
-    # Convert to local coordinates within the current band
-    if band == "HL":
-        local_x = x - current_level_bandsize
-        local_y = y
-    elif band == "LH":
-        local_x = x
-        local_y = y - current_level_bandsize
-    elif band == "HH":
-        local_x = x - current_level_bandsize
-        local_y = y - current_level_bandsize
-    
-    # Offspring are at 2× local position in the same orientation band at next level
-    offspring_local_x = 2 * local_x
-    offspring_local_y = 2 * local_y
-    
-    # Convert back to global coordinates
-    if band == "HL":
-        base_x = offspring_local_x + offspring_bandsize
-        base_y = offspring_local_y
-    elif band == "LH":
-        base_x = offspring_local_x
-        base_y = offspring_local_y + offspring_bandsize
-    elif band == "HH":
-        base_x = offspring_local_x + offspring_bandsize
-        base_y = offspring_local_y + offspring_bandsize
-    
-    # Expand to 4 children in a 2×2 block
     offspring = [
         (base_x, base_y), (base_x, base_y + 1),
         (base_x + 1, base_y), (base_x + 1, base_y + 1)
     ]
     
     return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
+
 
 # ======================================================
 # ================= Descendant Search ==================
@@ -198,13 +135,8 @@ def func_MyDescendant(x, y, set_type, m, level, bandsize):
     - x, y: current node coordinates
     - set_type: 0 for Type A (direct offspring), 1 for Type B (grandchildren)
     - m: DWT coefficient matrix
-    - level: DWT decomposition level
-    - bandsize: size of deepest LL band at current recursion level
-    
-    The bandsize increases as we recurse toward finer levels:
-    - At deepest level: bandsize = H // 2^level
-    - One level finer: bandsize * 2
-    - Two levels finer: bandsize * 4
+    - level: DWT decomposition level (fixed, never changes)
+    - bandsize: size of deepest LL band (ALWAYS deepest level, never changes)
     """
     H, W = m.shape
     max_vals = []
@@ -215,41 +147,22 @@ def func_MyDescendant(x, y, set_type, m, level, bandsize):
             max_vals.append(abs(m[ox, oy]))
             
             # Recurse to check descendants of offspring
-            # Offspring could be at same level (if parent is in deepest LL)
-            # or at next finer level (if parent is in HL/LH/HH)
-            if is_in_deepest_LL(x, y, bandsize):
-                # Offspring are in HL/LH/HH at same level
-                # Their descendants are at finer levels
-                offspring_bandsize = bandsize * 2
-                if offspring_bandsize <= H and level > 1:
-                    desc_max = func_MyDescendant(ox, oy, 0, m, level - 1, offspring_bandsize)
-                    max_vals.append(desc_max)
-            else:
-                # Offspring are already at next finer level
-                offspring_bandsize = bandsize * 2
-                if offspring_bandsize * 2 <= H and level > 1:
-                    desc_max = func_MyDescendant(ox, oy, 0, m, level - 1, offspring_bandsize)
-                    max_vals.append(desc_max)
+            # Use SAME bandsize (always deepest LL bandsize)
+            if len(get_offspring(ox, oy, level, bandsize, H, W)) > 0:
+                desc_max = func_MyDescendant(ox, oy, 0, m, level, bandsize)
+                max_vals.append(desc_max)
                 
     else:  # Type B: check grandchildren (offspring of offspring)
         for ox, oy in offspring:
             # Get offspring of offspring (grandchildren)
-            if is_in_deepest_LL(x, y, bandsize):
-                # Direct offspring are in HL/LH/HH at same level
-                # Grandchildren are at next finer level
-                sub_offspring = get_offspring(ox, oy, level - 1, bandsize * 2, H, W)
-                grandchild_bandsize = bandsize * 4
-            else:
-                # Direct offspring are at next finer level
-                # Grandchildren are at two levels finer
-                sub_offspring = get_offspring(ox, oy, level - 1, bandsize * 2, H, W)
-                grandchild_bandsize = bandsize * 4
+            sub_offspring = get_offspring(ox, oy, level, bandsize, H, W)
             
             for gx, gy in sub_offspring:
                 max_vals.append(abs(m[gx, gy]))
                 # Recurse to check descendants of grandchildren
-                if grandchild_bandsize <= H and level > 2:
-                    desc_max = func_MyDescendant(gx, gy, 0, m, level - 2, grandchild_bandsize)
+                # Use SAME bandsize (always deepest LL bandsize)
+                if len(get_offspring(gx, gy, level, bandsize, H, W)) > 0:
+                    desc_max = func_MyDescendant(gx, gy, 0, m, level, bandsize)
                     max_vals.append(desc_max)
 
     return max(max_vals) if max_vals else 0
@@ -371,21 +284,11 @@ def func_MySPIHT_Enc(m, max_bits=4096, level=1):
                             if not ok: return out[:index]
                             LIP = np.vstack([LIP, [ox, oy]]) if len(LIP) else np.array([[ox, oy]], np.int32)
                     
-                    # Check if this node has grandchildren to become Type B
-                    # Grandchildren exist if offspring have descendants
-                    has_grandchildren = False
-                    if is_in_deepest_LL(x, y, bandsize):
-                        # Offspring are in HL/LH/HH at same level
-                        # They have grandchildren at next finer level
-                        offspring_bandsize = bandsize * 2
-                        if offspring_bandsize <= H and level > 1:
-                            has_grandchildren = True
-                    else:
-                        # Offspring are at next finer level
-                        # They have grandchildren at two levels finer
-                        offspring_bandsize = bandsize * 2
-                        if offspring_bandsize * 2 <= H and level > 1:
-                            has_grandchildren = True
+                    # Check if offspring have their own offspring (become Type B)
+                    has_grandchildren = any(
+                        len(get_offspring(ox, oy, level, bandsize, H, W)) > 0
+                        for ox, oy in offspring
+                    )
                     
                     if has_grandchildren:
                         LIS_list[idx] = [x, y, 1]  # Convert to Type B
