@@ -216,7 +216,7 @@ def process_brats_dataset(data_dir, compressed_dir, decompressed_dir,
 
 
 if __name__ == "__main__":
-    base_out = "./outputs_SPIHT"
+    base_out = "./outputs_SPIHT_new"
     kits_out = os.path.join(base_out, "outputs_kits")
     brats_out = os.path.join(base_out, "outputs_brats")
     process_brats_dataset(
