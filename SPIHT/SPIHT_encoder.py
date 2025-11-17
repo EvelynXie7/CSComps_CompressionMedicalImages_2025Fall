@@ -9,13 +9,11 @@ Revised by: Rui Shen, Claude
 - Retains Type A / Type B LIS sorting structure
 - Supports multi-level DWT pyramids
 - Adds safe write checks to prevent buffer overflow
-- Clearer naming: is_in_deepest_LL, is_LL_root
-- Fixed: bandsize parameter is ALWAYS deepest LL bandsize, never changes
+
 
 - Pads to next valid DWT multiple
 - Initializes LIP/LIS/LSP
 - Adds integer headers [H, W, n_max, level]
-- Fixed Type B processing to handle offspring in same bitplane
 """
 
 import sys, pathlib
@@ -26,9 +24,9 @@ import numpy as np
 from dwt import runDWT
 
 
-# ======================================================
-# ================ Padding Utilities ===================
-# ======================================================
+
+# Padding Utilities
+
 
 def pad_to_multiple(img, k, mode="edge"):
     """Pad an image so that H,W are multiples of k."""
@@ -46,9 +44,9 @@ def unpad(img, pad_hw):
     return img[:H - pad_h, :W - pad_w]
 
 
-# ======================================================
-# ============ Safe Write Helper =======================
-# ======================================================
+
+#  Safe Write Helper
+
 
 def safe_write(out, index, val):
     """Safely write one integer to output buffer, preventing overflow."""
@@ -59,9 +57,9 @@ def safe_write(out, index, val):
     return index + 1, True
 
 
-# ======================================================
-# ========== Spatial-Orientation Tree Helpers ==========
-# ======================================================
+
+#  Spatial-Orientation Tree Helpers
+
 
 def is_in_deepest_LL(x, y, bandsize):
     """Check if coefficient is in the deepest LL region."""
@@ -108,7 +106,7 @@ def get_offspring(x, y, level, bandsize, H, W):
         
         return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
     
-    # Case 3: HL/LH/HH coefficients → just double the coordinates!
+    # Case 3: HL/LH/HH coefficients
     base_x, base_y = 2 * x, 2 * y
     
     # Check if offspring would be out of bounds
@@ -123,9 +121,8 @@ def get_offspring(x, y, level, bandsize, H, W):
     return [(ox, oy) for ox, oy in offspring if ox < H and oy < W]
 
 
-# ======================================================
-# ================= Descendant Search ==================
-# ======================================================
+
+#  Descendant Search 
 
 def func_MyDescendant(x, y, set_type, m, level, bandsize):
     """
@@ -147,7 +144,6 @@ def func_MyDescendant(x, y, set_type, m, level, bandsize):
             max_vals.append(abs(m[ox, oy]))
             
             # Recurse to check descendants of offspring
-            # Use SAME bandsize (always deepest LL bandsize)
             if len(get_offspring(ox, oy, level, bandsize, H, W)) > 0:
                 desc_max = func_MyDescendant(ox, oy, 0, m, level, bandsize)
                 max_vals.append(desc_max)
@@ -160,7 +156,6 @@ def func_MyDescendant(x, y, set_type, m, level, bandsize):
             for gx, gy in sub_offspring:
                 max_vals.append(abs(m[gx, gy]))
                 # Recurse to check descendants of grandchildren
-                # Use SAME bandsize (always deepest LL bandsize)
                 if len(get_offspring(gx, gy, level, bandsize, H, W)) > 0:
                     desc_max = func_MyDescendant(gx, gy, 0, m, level, bandsize)
                     max_vals.append(desc_max)
@@ -168,9 +163,9 @@ def func_MyDescendant(x, y, set_type, m, level, bandsize):
     return max(max_vals) if max_vals else 0
 
 
-# ======================================================
-# ======= Initialization of LIP / LIS / LSP ============
-# ======================================================
+
+#  Initialization of LIP / LIS / LSP 
+
 
 def init_spiht_lists(m, level):
     """
@@ -204,9 +199,8 @@ def init_spiht_lists(m, level):
     return np.array(LIP, np.int32), np.array(LIS, np.int32), []
 
 
-# ======================================================
-# ===================== Encoder ========================
-# ======================================================
+#  Encoder 
+
 
 def func_MySPIHT_Enc(m, max_bits=4096, level=1):
     """
