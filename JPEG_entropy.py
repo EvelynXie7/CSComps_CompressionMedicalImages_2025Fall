@@ -589,7 +589,7 @@ def put_tail(fileout):
 # Main Encoding Pipeline
 # =============================================================================
 
-def JPEG_encode(img, Q, filedir, filename):
+def JPEG_encode(img, Q, filename):
     """
     Encode the quantized DCT coefficients.
     
@@ -626,10 +626,8 @@ def JPEG_encode(img, Q, filedir, filename):
     # Call zero_pad
     byte_array, length = zero_pad(remaining_bits, byte_array, length)
 
-    if not os.path.exists(filedir): 
-        os.makedirs(filedir)
-        
-    with open(filedir+'/'+filename, 'wb') as fileout:
+
+    with open(filename, 'wb') as fileout:
         #put header
         put_header(num_blocks_horizontal * 8, num_blocks_vertical * 8, getJPEGQuantizationTable(Q), fileout)
         fileout.write(byte_array)
