@@ -14,12 +14,11 @@ def compressJPEG(original_image_data, Q, filedir, filename):
     JPEG_encode(image_data, Q, filedir, filename)
 
 
-def decompressJPEG(Q, comp_filedir, comp_filename, decomp_filedir, decomp_filename):
+def decompressJPEG(comp_filedir, comp_filename, decomp_filedir, decomp_filename):
     '''
     Decompress a compressed JPEG stored in a binary file
     '''
-    compressed_image_data = JPEG_decode(comp_filedir+'/'+comp_filename)
-    quantization_table = getJPEGQuantizationTable(Q)
+    compressed_image_data, quantization_table = JPEG_decode(comp_filedir+'/'+comp_filename)
     image_data = decodeQuantization(compressed_image_data, quantization_table)
     image_data = decodeDCT(image_data)
     saveImage(image_data, decomp_filedir, decomp_filename)

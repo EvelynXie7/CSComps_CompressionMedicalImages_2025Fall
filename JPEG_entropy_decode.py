@@ -110,6 +110,39 @@ def JPEG_decode(input_filename):
     
     with open(input_filename, 'rb') as filein:
         file_content = filein.read()
+
+        # Find DQT (Define Quantization Table) marker
+        dqt_index = file_content.find(b'\xFF\xDB')
+        
+        # Skip marker (2 bytes), length (2 bytes), and precision/table ID (1 byte)
+        qt_offset = dqt_index + 5
+        
+        # Read 128 bytes (64 values * 2 bytes each for 16-bit quantization values)
+        qt_data = file_content[qt_offset:qt_offset + 128]
+        
+        # Parse quantization table from zigzag order to 8x8 array
+        Zig = [
+            [ 0, 1, 5, 6,14,15,27,28],
+            [ 2, 4, 7,13,16,26,29,42],
+            [ 3, 8,12,17,25,30,41,43],
+            [ 9,11,18,24,31,40,44,53],
+            [10,19,23,32,39,45,52,54],
+            [20,22,33,38,46,51,55,60],
+            [21,34,37,47,50,56,59,61],
+            [35,36,48,49,57,58,62,63]
+        ]
+        
+        quantization_table = np.zeros((8, 8), dtype=int)
+        for i in range(64):
+            # Read 16-bit value (2 bytes)
+            qt_value = (qt_data[i*2] << 8) | qt_data[i*2 + 1]
+            
+            # Find row and column from zigzag position
+            for row in range(8):
+                for col in range(8):
+                    if Zig[row][col] == i:
+                        quantization_table[row, col] = qt_value
+                        break
         
         #Start of Frame 0 marker
         # indicates the beginning of the frame header which contains image info
@@ -153,4 +186,4 @@ def JPEG_decode(input_filename):
             current_dc, zigzag_sequence, block_code = block_decode(current_dc, block_code)
             image[i, j] = decode_zigzag(zigzag_sequence)
     
-    return image
+    return image, quantization_table
