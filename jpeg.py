@@ -15,6 +15,9 @@ def compressJPEG(original_image_data, Q, filedir, filename):
 
 
 def decompressJPEG(Q, comp_filedir, comp_filename, decomp_filedir, decomp_filename):
+    '''
+    Decompress a compressed JPEG stored in a binary file
+    '''
     compressed_image_data = JPEG_decode(comp_filedir+'/'+comp_filename)
     quantization_table = getJPEGQuantizationTable(Q)
     image_data = decodeQuantization(compressed_image_data, quantization_table)
@@ -24,6 +27,10 @@ def decompressJPEG(Q, comp_filedir, comp_filename, decomp_filedir, decomp_filena
 
 
 def JPEG():
+    '''
+    Run the JPEG algorithm, encoding and decoding, on all KiTS data and BRaTS data. Save the binary file, 
+    decompressed image, and MSE, PSNR, encoding_time, and decoding_time metrics. Uses a constant QUALITY=50
+    '''
     QUALITY = 50
 
     for case in range(300):
