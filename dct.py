@@ -13,28 +13,30 @@ def reshapeImageForDCT(image_data):
     h_remainder = h % 8
     w_remainder = h % 8
 
-    if h_remainder != 0:
-        h += 8 - (h_remainder)
-    if w_remainder != 0:
-        w += 8 - (w_remainder)
-
     resized = image_data
+    new_h = h
+    new_w = w
+
+    if h_remainder != 0:
+        new_h = h+8-h_remainder
+    if w_remainder != 0:
+        new_w = w+8-w_remainder
+    
     if h_remainder != 0 or w_remainder != 0:
-        resized = np.empty((h, w), dtype=np.int16)
-        resized[:(h-h_remainder), :(w-w_remainder)] = image_data[:, :]
-        for i in range(h-h_remainder, h):
-            resized[i, :(w-w_remainder)] = image_data[-1, :]
-        for i in range(w-w_remainder, w):
-            resized[:(h-h_remainder), i] = image_data[:, -1]
-        resized[(h-h_remainder):, (w-w_remainder):].fill(image_data[:, -1])
+        resized = np.empty((new_h, new_w), dtype=np.int16)
+        resized[:h, :w] = image_data[:, :]
+        for i in range(h, new_h):
+            resized[i, :w] = image_data[-1, :]
+        for i in range(w, new_w):
+            resized[:h, i] = image_data[:, -1]
+        resized[h:, w:].fill(image_data[-1, -1])
 
     
-    reshaped = np.empty((h // 8, w // 8, 8, 8), dtype=np.int16)
+    reshaped = np.empty((new_h // 8, new_w // 8, 8, 8), dtype=np.int16)
 
-    for i in range(h // 8):
-        for j in range(w // 8):
+    for i in range(new_h // 8):
+        for j in range(new_w // 8):
             reshaped[i,j] = resized[8*i:8*i+8, 8*j:8*j+8]
-
 
     return reshaped - 128
 

@@ -10,9 +10,6 @@ from JPEG_entropy import JPEG_encode
 from JPEG_entropy_decode import JPEG_decode
 
 
-DEFAULT_HU_MAX = 512
-DEFAULT_HU_MIN = -512
-
 def compressJPEG(original_image_data, Q, filename):
     image_data = runDCT(original_image_data)
     image_data = quantize(image_data, Q)
@@ -30,7 +27,7 @@ def decompressJPEG(comp_filename, decomp_filename):
     return image_data
 
 
-def runJPEGOnCase(case_data, case_id, output_dir, quality):
+def runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis):
     max_val = np.max(case_data)
     min_val = np.min(case_data)
     if max_val > min_val:
@@ -47,9 +44,19 @@ def runJPEGOnCase(case_data, case_id, output_dir, quality):
     os.makedirs(decomp_filedir, exist_ok=True)
     os.makedirs(metrics_filedir, exist_ok=True)
 
-    for slice_num in range(case_data.shape[0]):
+    for slice_num in range(case_data.shape[slice_axis]):
         slice_id = "slice_{:05d}".format(slice_num)
-        slice_data = case_data[slice_num]
+        slice_data = None
+        match slice_axis:
+            case 0:
+                slice_data = case_data[slice_num, :, :]
+            case 1:
+                slice_data = case_data[:, slice_num, :]
+            case 2:
+                slice_data = case_data[:, :, slice_num]
+            case _:
+                print("Invalid slice.")
+                exit()
 
         comp_filename = os.path.join(comp_filedir, f'{slice_id}.bin')
         decomp_filename = os.path.join(decomp_filedir, f'{slice_id}.png')
@@ -88,7 +95,7 @@ def runJPEGOnKiTS(outputs, quality):
         case_data = np.clip(case_data, DEFAULT_HU_MIN, DEFAULT_HU_MAX)
 
         print(f"[Process KiTS19] {case_id}")
-        runJPEGOnCase(case_data, case_id, output_dir, quality)
+        runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis=0)
         print(f"[Done] {case_id}: {case_data.shape[0]} slices.")
 
 
@@ -106,7 +113,7 @@ def runJPEGOnBraTS(outputs, modality, quality):
         case_data = case.get_fdata()
 
         print(f"[Process BraTS2021] {case_id}")
-        runJPEGOnCase(case_data, case_id, output_dir, quality)
+        runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis=2)
         print(f"[Done] {case_id}: {case_data.shape[0]} slices.")
 
 
@@ -118,8 +125,8 @@ def JPEG():
     QUALITY = 50
     outputs_dir = 'outputs'
 
-    # runJPEGOnBraTS(outputs_dir, 't1ce', QUALITY)
-    runJPEGOnKiTS(outputs_dir, QUALITY)
+    runJPEGOnBraTS(outputs_dir, 't1ce', QUALITY)
+    # runJPEGOnKiTS(outputs_dir, QUALITY)
         
 
 if __name__ == '__main__':

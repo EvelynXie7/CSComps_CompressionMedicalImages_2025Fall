@@ -2,6 +2,9 @@ import numpy as np
 from PIL import Image
 import os
 
+DEFAULT_HU_MAX = 512
+DEFAULT_HU_MIN = -512
+
 
 def saveImage(image_data, filename):
     PIL_image = Image.fromarray(image_data.astype(np.uint8))
