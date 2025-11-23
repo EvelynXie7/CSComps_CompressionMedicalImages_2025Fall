@@ -20,7 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT.parent))
 
-from dwt import decodeDWT
+from transforms import decodeDWT
 from SPIHT_encoder import unpad
 from SPIHT_decoder import func_MySPIHT_Dec
 from kits_visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX

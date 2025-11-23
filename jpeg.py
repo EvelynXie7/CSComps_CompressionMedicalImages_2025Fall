@@ -2,7 +2,7 @@ import nibabel as nib
 import json
 import time
 
-from dct import *
+from transforms import runDCT, decodeDCT
 from quantization import *
 from metrics import *
 from utils import *

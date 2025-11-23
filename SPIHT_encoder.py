@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import numpy as np
-from dwt import runDWT
+from transforms import runDWT
 
 
 
