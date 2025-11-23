@@ -5,7 +5,7 @@ import numpy as np
 
 ALGORITHM_METRIC_COLUMNS = ['mse', 'psnr', 'encoding_time', 'decoding_time', 'cr', 'overall_mse', 'overall_psnr', 'bg_cr', 'bg_mse', 'bg_psnr', 'roi_cr', 'roi_mse', 'roi_psnr', 'compression_ratio_combined', 'roi_compression_ratio', 'bg_compression_ratio', 'compressed_size_bytes', 'roi_compressed_bytes', 'bg_compressed_bytes', 'meta_bytes', 'compression_ratio_two_stream']
 
-IMAGE_STATISTIC_COLUMNS = ['has_roi', 'roi_percentage', 'black_percentage', 'bg_original_bytes', 'bg_only_bytes', 'roi_only_bytes', 'combined_bytes', 'roi_pixel_count', 'bg_pixel_count', 'original_size_bytes']
+IMAGE_STATISTIC_COLUMNS = ['has_roi', 'roi_percentage', 'black_percentage', 'bg_pixel_count', 'bg_original_bytes', 'bg_only_bytes', 'roi_pixel_count', 'roi_original_bytes', 'roi_only_bytes', 'combined_bytes', 'original_size_bytes']
 
 IMAGE_INDEXING_COLUMNS = ['dataset', 'case', 'slice_idx']
 
@@ -102,8 +102,8 @@ def combineAllMetrics():
     
 
 def main():
-    mergeJPEGMetrics('kits')
-    mergeJPEGMetrics('brats')
+    # mergeJPEGMetrics('kits')
+    # mergeJPEGMetrics('brats')
     combineAllMetrics()
 
 
