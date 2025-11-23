@@ -114,7 +114,7 @@ def runJPEGOnBraTS(outputs, modality, quality):
 
         print(f"[Process BraTS2021] {case_id}")
         runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis=2)
-        print(f"[Done] {case_id}: {case_data.shape[0]} slices.")
+        print(f"[Done] {case_id}: {case_data.shape[2]} slices.")
 
 
 def JPEG():

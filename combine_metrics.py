@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import json
+import numpy as np
 
 ALGORITHM_METRIC_COLUMNS = ['mse', 'psnr', 'encoding_time', 'decoding_time', 'cr', 'overall_mse', 'overall_psnr', 'bg_cr', 'bg_mse', 'bg_psnr', 'roi_cr', 'roi_mse', 'roi_psnr', 'compression_ratio_combined', 'roi_compression_ratio', 'bg_compression_ratio', 'compressed_size_bytes', 'roi_compressed_bytes', 'bg_compressed_bytes', 'meta_bytes', 'compression_ratio_two_stream']
 
@@ -23,6 +24,8 @@ def mergeJPEGMetrics(dataset):
                     slice_data = json.load(f)
                     slice_data['slice_idx'] = int(file.split('_')[1].split('.')[0])
                     case_slices.append(slice_data)
+                    if slice_data['PSNR'] == None:
+                        slice_data['PSNR'] = np.inf
             except Exception:
                 continue
 
@@ -68,15 +71,12 @@ def combineAllMetrics():
         dataset_df = pd.DataFrame()
 
         for algorithm in ('jpeg', 'jpeg2000', 'spiht'):
-            if algorithm == 'jpeg' and dataset == 'kits': 
-                continue
-
-            new_df = getDFFromJSON(algorithm, dataset)
+            algorithm_df = getDFFromJSON(algorithm, dataset)
 
             if len(dataset_df) == 0:
-                dataset_df = new_df.copy()
+                dataset_df = algorithm_df.copy()
             else:
-                dataset_df = dataset_df.merge(new_df, how='inner', on=IMAGE_INDEXING_COLUMNS)
+                dataset_df = dataset_df.merge(algorithm_df, how='inner', on=IMAGE_INDEXING_COLUMNS)
 
         if len(full_df) == 0:
             full_df = dataset_df.copy()
@@ -102,7 +102,8 @@ def combineAllMetrics():
     
 
 def main():
-    # mergeJPEGMetrics('brats')
+    mergeJPEGMetrics('kits')
+    mergeJPEGMetrics('brats')
     combineAllMetrics()
 
 
