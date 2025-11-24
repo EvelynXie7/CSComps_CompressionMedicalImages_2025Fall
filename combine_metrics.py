@@ -103,7 +103,7 @@ def combineAllMetrics():
 
 def main():
     # mergeJPEGMetrics('kits')
-    mergeJPEGMetrics('brats')
+    # mergeJPEGMetrics('brats')
     combineAllMetrics()
 
 
