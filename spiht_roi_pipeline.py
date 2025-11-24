@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT.parent))
 from transforms import *
 from SPIHT_encoder import *
 from SPIHT_decoder import func_MySPIHT_Dec
-from kits_visualize import DEFAULT_HU_MIN, DEFAULT_HU_MAX
+from utils import DEFAULT_HU_MIN, DEFAULT_HU_MAX
 
 
 # Helper Utilities 

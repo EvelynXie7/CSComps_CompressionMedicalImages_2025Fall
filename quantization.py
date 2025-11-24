@@ -1,7 +1,8 @@
 import numpy as np
 
 
-JPEG_LUMINANCE_QUANTIZATION_TABLE = np.array([ # From https://www.sciencedirect.com/topics/engineering/quantization-table
+JPEG_LUMINANCE_QUANTIZATION_TABLE = np.array([ 
+    # From https://www.sciencedirect.com/topics/engineering/quantization-table
     [16, 11, 10, 16, 24, 40, 51, 61],
     [12, 12, 14, 19, 26, 58, 60, 55],
     [14, 13, 16, 24, 40, 57, 69, 56],
@@ -15,12 +16,16 @@ JPEG_LUMINANCE_QUANTIZATION_TABLE = np.array([ # From https://www.sciencedirect.
 
 def getJPEGQuantizationTable(Q):
     '''
-    Inputs: 
-        - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
-    Outputs:
-        - quantization_table (8x8 np.ndarray): The quantization table for this algorithm
+    Create the JPEG Quantization table given a quality Q.
+
+    Input:
+        Q - a quality parameter that is an integer between 1 and 99 inclusive, where 1 is 
+            high quality and 99 higher compression
+    
+    Output:
+        table - the new quantization table
     '''
-    assert Q >= 1 and Q <= 100
+    assert Q >= 1 and Q <= 99
 
     table = JPEG_LUMINANCE_QUANTIZATION_TABLE
 
@@ -37,11 +42,14 @@ def getJPEGQuantizationTable(Q):
 
 def quantize(unquantized_matrix, Q):
     '''
+    Quantizes all chunks in the image data, dividing all values in an 8x8 chunk by their corresponding
+    value in the correct quantization table and rounded to the nearest integer.
+
     Inputs: 
-        - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
-        - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+        unquantized_matrix - The un-quantized image data
+        Q - The quality of the compression/quantization, to be used when creating the quantization table
     Outputs:
-        - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
+        quantized_matrix - The quantized image data
     '''
     quantization_table = getJPEGQuantizationTable(Q)
 
@@ -56,11 +64,14 @@ def quantize(unquantized_matrix, Q):
 
 def decodeQuantization(quantized_matrix, quantization_table):
     '''
+    Un-quantizes all chunks in the image data, multiplying all values in an 8x8 chunk by their corresponding
+    value in the given quantization table.
+
     Inputs: 
-        - quantized_matrix (nxmx8x8 np.ndarray): The quantized image data
-        - algorithm (str): The name of the algorithm being quantized, i.e. "jpeg" or "jpeg2000"
+        quantized_matrix - the image data after quantization
+        quantization_table - the quantization table used when originally quantizing the data
     Outputs:
-        - unquantized_matrix (nxmx8x8 np.ndarray): The un-quantized image data
+        unquantized_matrix: the unquantized data; the data after being multiplied back
     '''
     shape = quantized_matrix.shape
     unquantized_matrix = np.empty(shape, dtype=np.int16)

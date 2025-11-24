@@ -53,13 +53,3 @@ def getCR(orig_image_size, compressed_filepath):
     '''
     compressed_bytes = os.path.getsize(compressed_filepath)
     return orig_image_size / compressed_bytes
-
-
-def showMetrics(image1, image2):
-    mse = getMSE(image1, image2)
-    psnr = getPSNR(image1, image2)
-
-    print('\nCompression statistics:\n-----------')
-    print('MSE: ', round(mse, 5))
-    print('PSNR:', round(psnr, 5))
-    print()

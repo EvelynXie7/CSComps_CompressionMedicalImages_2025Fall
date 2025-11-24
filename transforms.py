@@ -163,6 +163,7 @@ def decodeDCT(matrices):
     '''
     Run the Inverse Discrete Cosine Transform on each 8x8 chunk of an image. Combines the
     chunks back into their original shape.
+    
     Input:
         matrices - the image data, split into 8x8 chunks, after DCT has been run on them
     
