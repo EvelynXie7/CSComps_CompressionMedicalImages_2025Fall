@@ -21,15 +21,18 @@ This repository provides:
 
 ## Datasets
 
-This project uses two publicly available datasets from **The Cancer Imaging Archive (TCIA)**:
+This project uses two publicly available, annotated medical imaging datasets: BraTS 2021 and KiTS19.
 
-### **C4KC-KiTS (Kidney Tumor CT)**
-https://www.cancerimagingarchive.net/collection/c4kc-kits/  
+### **KiTS19: Kidney Tumor CT**
+https://github.com/neheller/kits19
 Contains CT volumes with kidney and tumor segmentations.
 
 ### **BraTS 2021: Brain Tumor MRI**
-https://www.cancerimagingarchive.net/analysis-result/rsna-asnr-miccai-brats-2021/  
+https://www.cancerimagingarchive.net/analysis-result/rsna-asnr-miccai-brats-2021/
 Contains multi-modal MRI scans with detailed tumor segmentations.
+
+
+
 
 ---
 
@@ -110,3 +113,4 @@ conda install -c conda-forge openjpeg
 - Evelyn Xie
 
 Advised by Layla Oesper
+
