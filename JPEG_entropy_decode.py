@@ -4,12 +4,33 @@ from jpeg_huffman_tables import *
 
 
 def get_from_huffman(block_code, table):
+    """
+    Get the first value in a bitstream given the Huffman table to look at
+    
+    Input:
+        block_code - the binary bitstream
+        table - the Huffman table to look at
+    
+    Output:
+        key - the first value in the bitstream
+        length - the number of bits that the key takes up in the bitstream
+    """
     for key, val in table.items():
         if block_code[:val['length']] == val['code']:
             return key, block_code[val['length']:]
     raise Exception
 
+
 def decode_zigzag(zigzag_sequence):
+    """
+    Convert a 1D zigzag array into its 8x8 form
+    
+    Input:
+        zigzag_sequence - the 1D zigzag array of 64 values
+    
+    Output:
+        zigzag_arr - the reformatted 2D 8x8 zigzag array
+    """
     zigzag_arr = np.empty((8, 8))
     for i in range(64):
         row_num = ZIGZAG_ORDER[i] // 8
@@ -20,7 +41,17 @@ def decode_zigzag(zigzag_sequence):
 
 
 def decode_VLI(bitsize, block_code):
-    # Get a value from a bitsize
+    """
+    Get the numerical value of a variable from its bitsize, taking its 2's compliment if necessary
+    
+    Input:
+        bitsize - the bitsize of the number to return
+        block_code - the binary bitstream
+    
+    Output:
+        num - the value
+        block_code - the remainder of the binary bitstream
+    """
     if bitsize == 0:
         return 0, block_code
     
@@ -33,12 +64,33 @@ def decode_VLI(bitsize, block_code):
 
 
 def DC_decode(block_code):
+    """
+    Get the difference between the current and previous DC values from the bitstream.
+    
+    Input:
+        block_code - the binary bitstream
+    
+    Output:
+        VLI_val - the difference between the DC values
+        block_code - the remainder of the binary bitstream
+    """
     VLC_val, block_code = get_from_huffman(block_code, DC_HUFFMAN_TABLE) # Get bitsize of VLI_diff
     VLI_val, block_code = decode_VLI(VLC_val, block_code)
     return VLI_val, block_code
 
 
 def AC_decode(current_dc, block_code):
+    """
+    Get the AC values from the bitstream.
+    
+    Input:
+        current_dc - the first coefficient in the block
+        block_code - the binary bitstream
+    
+    Output:
+        zigzag_sequence - the 1D array of the 64 coefficients in this block
+        block_code - the remainder of the binary bitstream
+    """
     zigzag_sequence = [current_dc]
 
     while len(zigzag_sequence) < 64:
@@ -55,6 +107,18 @@ def AC_decode(current_dc, block_code):
 
 
 def block_decode(previous_dc, block_code):
+    """
+    Decode the bitstream to get an array of the values in the original 8x8 array from it.
+    
+    Input:
+        previous_dc - the value of the previous block's DC, or 0 if this is the first block
+        block_code - the binary bitstream
+    
+    Output:
+        current_dc - the DC value for this block
+        zigzag_sequence - the 1D array of the 64 coefficients in this block
+        block_code - the remainder of the binary bitstream
+    """
     VLI_val, block_code = DC_decode(block_code)
     current_dc = previous_dc + VLI_val
     zigzag_sequence, block_code = AC_decode(current_dc, block_code)

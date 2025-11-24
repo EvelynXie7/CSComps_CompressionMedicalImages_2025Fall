@@ -5,12 +5,29 @@ import numpy as np
 WAVELET =  pywt.Wavelet('db1') # Chose Daubechiesfilter because that's what https://www.sciencedirect.com/science/article/pii/S2352914818302405 did
 
 def combineDWTData(LL, LH, HL, HH):
+    '''
+    Function to combine the LL, LH, HL, and HH components into one image to be used for SPIHT. This image has LL, LH, 
+    HH, and HL images in clockwise order starting with the top-left
+
+    Inputs: 
+        LL, LH, HL, HH - the low-low, low-high, high-low, and high-high frequency images
+    Outputs:
+        dwt_data - the image after having one level of DWT run on it, with all the components combined into one image
+    '''
     L_data = np.vstack((LL, LH))
     H_data = np.vstack((HL, HH))
     return np.hstack((L_data, H_data))
 
 
 def separateDWTData(dwt_data):
+    '''
+    Function to get the LL, LH, HL, and HH components back from an image that has had DWT run on it.
+
+    Inputs: 
+        dwt_data - the image after having one level of DWT run on it
+    Outputs:
+        LL, LH, HL, HH - the low-low, low-high, high-low, and high-high frequency images
+    '''
     x_len = dwt_data.shape[0] // 2
     y_len = dwt_data.shape[1] // 2
 
@@ -23,6 +40,15 @@ def separateDWTData(dwt_data):
 
 
 def runDWT(image_data, level):
+    '''
+    Recursive function to run a multi-or-single-level DWT for SPIHT.
+
+    Inputs: 
+        image_data - the original image data
+        level - the level of the DWT to do
+    Outputs:
+        dwt_data - the image after having that many levels of DWT run on it
+    '''
     if level == 0:
         return image_data
     
@@ -34,6 +60,15 @@ def runDWT(image_data, level):
 
 
 def decodeDWT(dwt_data, level):
+    '''
+    Recursive function to run the inverse of a multi-or-single-level DWT in order to return it to original form.
+
+    Inputs: 
+        dwt_data - the data for an image after having had DWT run on it
+        level - the level of the DWT to undo
+    Outputs:
+        image_data - the image restored by undoing and combining the DWT'ed data
+    '''
     if level == 0:
         return dwt_data
     
@@ -43,13 +78,16 @@ def decodeDWT(dwt_data, level):
 
     return image_data
 
+
 def reshapeImageForDCT(image_data):
     '''
+    Reshape the image from one full image into 8x8 arrays and centers the values around 0.
+
     Inputs: 
-        - image_data (nxm np.ndarray): The data for a grayscale image, where each item is the grayscale of that pixel
+        image_data (nxm np.ndarray) - the data for an image
     Outputs:
-        - reshaped ((n/8)x(m/8)x8x8 np.ndarray): The same image, but with its data split into 8x8 chunks, 
-          and instead of values from 0 to 255, -128 to 127
+        reshaped ((n/8)x(m/8)x8x8 np.ndarray) - the same image, but with its data split into 8x8 chunks, 
+        and instead of values from 0 to 255, -128 to 127
     '''
     h, w = image_data.shape
     h_remainder = h % 8
@@ -85,10 +123,12 @@ def reshapeImageForDCT(image_data):
 
 def reshapeImageFromDCT(matrices):
     '''
+    Reshape the image from 8x8 arrays into one full image and un-centers the values around 0.
+
     Inputs: 
-        - image_data (nxmx8x8 np.ndarray): Data for an image, split into 8x8 chunks of pixels
+        matrices (nxmx8x8 np.ndarray) - data for an image, split into 8x8 chunks of pixels
     Outputs:
-        - reshaped ((n*8)x(m*8) np.ndarray): Reshaped data for the image, returning it from 8x8 chunks to regular form
+        reshaped ((n*8)x(m*8) np.ndarray) - reshaped data for the image, returning it from 8x8 chunks to regular form
     '''
     h, w, _, _ = matrices.shape
     reshaped = np.empty((h * 8, w * 8), dtype=np.int16)
@@ -101,6 +141,16 @@ def reshapeImageFromDCT(matrices):
 
 
 def runDCT(image_data):
+    '''
+    Run the Discrete Cosine Transform on each 8x8 chunk of an image. Extends the image if
+    size not divisible by 8.
+
+    Input:
+        image_data - the original image data
+    
+    Output:
+        matrices - the image data, split into 8x8 chunks, after DCT has been run on them
+    '''
     matrices = reshapeImageForDCT(image_data)
     h, w = matrices.shape[0], matrices.shape[1]
     for i in range(h):
@@ -110,6 +160,15 @@ def runDCT(image_data):
 
 
 def decodeDCT(matrices):
+    '''
+    Run the Inverse Discrete Cosine Transform on each 8x8 chunk of an image. Combines the
+    chunks back into their original shape.
+    Input:
+        matrices - the image data, split into 8x8 chunks, after DCT has been run on them
+    
+    Output:
+        image_data - the image data, recombined, after IDCT has been run on each chunk
+    '''
     h, w = matrices.shape[0], matrices.shape[1]
     for i in range(h):
         for j in range(w):

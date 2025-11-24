@@ -11,6 +11,19 @@ from JPEG_entropy_decode import JPEG_decode
 
 
 def compressJPEG(original_image_data, Q, filename):
+    '''
+    Compresses an image file into binary using the JPEG algorithm.
+
+    Input:
+        original_image_data - the original data of the image
+        Q - the quantization quality
+        filename - the location to save the file to
+    
+    Output:
+        image_data - an np array of the decompressed image's data
+
+        Saves the JPEG image as a PNG into decomp_filename.
+    '''
     image_data = runDCT(original_image_data)
     image_data = quantize(image_data, Q)
     JPEG_encode(image_data, Q, filename)
@@ -18,7 +31,16 @@ def compressJPEG(original_image_data, Q, filename):
 
 def decompressJPEG(comp_filename, decomp_filename):
     '''
-    Decompress a compressed JPEG stored in a binary file
+    Decompresses a binary file into a JPEG image.
+
+    Input:
+        comp_filename - the name and directory of the compressed binary file
+        decomp_filename - the name and directory of where the decompressed file should be saved
+    
+    Output:
+        image_data - an np array of the decompressed image's data
+
+        Saves the JPEG image as a PNG into decomp_filename.
     '''
     compressed_image_data, quantization_table = JPEG_decode(comp_filename)
     image_data = decodeQuantization(compressed_image_data, quantization_table)
@@ -28,6 +50,19 @@ def decompressJPEG(comp_filename, decomp_filename):
 
 
 def runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis):
+    '''
+    Run the JPEG algorithm, encoding and decoding, on all slices of a case
+
+    Input:
+        case_data - a 3D array of the original image data in the case
+        case_id - the string name of the case
+        output_dir - the directory to save the files in
+        output_dir - the quantization quality parameter
+        slice_axis - the dimension of the case_data array to slice on
+    
+    Output:
+        Saves the binary file, decompressed png, and metrics for each slice to a file
+    '''
     max_val = np.max(case_data)
     min_val = np.min(case_data)
     if max_val > min_val:
@@ -81,6 +116,16 @@ def runJPEGOnCase(case_data, case_id, output_dir, quality, slice_axis):
 
 
 def runJPEGOnKiTS(outputs, quality):
+    '''
+    Run the JPEG algorithm, encoding and decoding, on all KiTS data.
+
+    Input:
+        outputs - the name of the directory to store the outputs in
+        quality - the quality parameter Q to use when quantizing
+    
+    Output:
+        Saves the binary file, decompressed png, and metrics for each slice of each case to a file
+    '''
     output_dir = os.path.join(outputs, 'kits')
 
     for case_num in range(300):
@@ -100,6 +145,17 @@ def runJPEGOnKiTS(outputs, quality):
 
 
 def runJPEGOnBraTS(outputs, modality, quality):
+    '''
+    Run the JPEG algorithm, encoding and decoding, on all BraTS data.
+
+    Input:
+        outputs - the name of the directory to store the outputs in
+        modality - the image modality to look at, we chose t1ce for all experiments
+        quality - the quality parameter Q to use when quantizing
+    
+    Output:
+        Saves the binary file, decompressed png, and metrics for each slice of each case to a file
+    '''
     output_dir = os.path.join(outputs, 'brats')
 
     for case_num in range(1667):
@@ -120,13 +176,19 @@ def runJPEGOnBraTS(outputs, modality, quality):
 def JPEG():
     '''
     Run the JPEG algorithm, encoding and decoding, on all KiTS data and BRaTS data. Save the binary file, 
-    decompressed image, and MSE, PSNR, encoding_time, and decoding_time metrics. Uses a constant QUALITY=50
+    decompressed image, and MSE, PSNR, encoding_time, and decoding_time metrics. Uses a constant QUALITY=50.
+
+    Input:
+        None
+    
+    Output:
+        Saves the binary file, decompressed png, and metrics for each slice of each case to a file
     '''
     QUALITY = 50
     outputs_dir = 'outputs'
 
     runJPEGOnBraTS(outputs_dir, 't1ce', QUALITY)
-    # runJPEGOnKiTS(outputs_dir, QUALITY)
+    runJPEGOnKiTS(outputs_dir, QUALITY)
         
 
 if __name__ == '__main__':
